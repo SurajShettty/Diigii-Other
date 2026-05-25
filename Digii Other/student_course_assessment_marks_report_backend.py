@@ -27,7 +27,7 @@ DATABASE = "collpoll_iihmr"
 # =========================================================
 
 # Comma-separated list of term IDs. Whitespace around commas is fine.
-TERM_IDS = "256,241"
+TERM_IDS = "77,137"
 
 # Seconds to sleep between term runs (reduces DB load on a read replica).
 DELAY_BETWEEN_TERMS_SECONDS = 10
@@ -36,7 +36,7 @@ DELAY_BETWEEN_TERMS_SECONDS = 10
 # OUTPUT
 # =========================================================
 
-OUTPUT_DIR = r"C:\Users\suraj\OneDrive\Desktop"
+OUTPUT_DIR = r"C:\Users\suraj\OneDrive\Desktop\IIHMRJ_Student_Course_Assessment_Marks_Reports"
 OUTPUT_FILE_TEMPLATE = (
     OUTPUT_DIR + r"\student_course_assessment_marks_report_{term_id}.csv"
 )
@@ -366,6 +366,31 @@ def run_for_term(term_id):
 
     # ---- CALCULATIONS ----
     print(f"[term {term_id}] Applying calculations...")
+
+    # MySQL DECIMAL columns come back as Python Decimal objects in
+    # object-dtype Series. np.round / arithmetic on object dtype raises
+    # "loop of ufunc does not support argument 0 of type float which has
+    # no callable rint method". Coerce numerics to float up front.
+    numeric_cols = [
+        'component_weightage',
+        'total_marks',
+        'assessment_maximum_marks',
+        'composition_weightage',
+        'assessment_effective_obtained_marks',
+        'assessment_re_evalution_marks',
+        'assesment_moderated_marks',
+        'passing_marks',
+        'component_marks',
+        'course_marks',
+        'course_moderated_marks',
+        're_exam_marks',
+        'grade_point',
+        'moderation_grade_point',
+        'course_credits',
+    ]
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     df['component_maximum_marks'] = np.where(
         df['component_type'].isin(['RE_EXAM', 'MAKEUP']),
