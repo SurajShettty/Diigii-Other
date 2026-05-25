@@ -27,7 +27,7 @@ DATABASE = "collpoll_iihmr"
 # =========================================================
 
 # Comma-separated list of term IDs. Whitespace around commas is fine.
-TERM_IDS = "77,137"
+TERM_IDS = "18,19,20,21,28,29,30,31,32,33,34,35,36,37,38,39,44,45,54,55,56,57,58,59,60,61,62,63,64,65,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135"
 
 # Seconds to sleep between term runs (reduces DB load on a read replica).
 DELAY_BETWEEN_TERMS_SECONDS = 10
@@ -336,6 +336,35 @@ def run_for_term(term_id):
     ea_df = pd.read_sql(ea_query, engine)
     print(f"[term {term_id}] Answer sheet rows fetched: {len(ea_df)}")
 
+    # ---- QUERY 7 : STUDENT DETAILS ----
+    student_query = f"""
+    SELECT
+        ua.ukid AS student_ukid,
+        CONCAT(ua.f_name, ' ', ua.l_name) AS student_name,
+        ua.registration_id,
+        sp.year_of_joining,
+        p.programme_name,
+        d.department_name
+
+    FROM user_attributes ua
+
+    LEFT JOIN student_profile sp
+        ON sp.ukid = ua.ukid
+
+    LEFT JOIN programme p
+        ON p.programme_id = sp.programme_id
+
+    LEFT JOIN department d
+        ON d.department_id = p.department_id
+
+    WHERE ua.user_type = 'student'
+    AND ua.ukid IN {sql_in_clause(student_ukids)}
+    """
+
+    print(f"[term {term_id}] Running Student Details query...")
+    student_df = pd.read_sql(student_query, engine)
+    print(f"[term {term_id}] Student detail rows fetched: {len(student_df)}")
+
     # ---- MERGE ----
     print(f"[term {term_id}] Merging dataframes...")
 
@@ -359,6 +388,11 @@ def run_for_term(term_id):
     df = df.merge(
         ea_df,
         on=['student_ukid', 'term_course_id', 'exam_type_id'],
+        how='left',
+    )
+    df = df.merge(
+        student_df,
+        on='student_ukid',
         how='left',
     )
 
@@ -457,6 +491,11 @@ def run_for_term(term_id):
         "course_credits",
         "course_department_name",
         "student_ukid",
+        "student_name",
+        "registration_id",
+        "year_of_joining",
+        "programme_name",
+        "department_name",
         "answer_sheet_number",
         "component_name",
         "component_maximum_marks",
