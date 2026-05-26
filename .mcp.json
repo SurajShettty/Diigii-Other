@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/database-server",
+        "--mysql",
+        "--host", "digiidbcommon.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+        "--database", "collpoll_university",
+        "--port", "3306",
+        "--user", "suraj_shetty",
+        "--password", "xlLlDMtUOt"
+      ],
+      "env": {
+        "ALLOW_INSERT_OPERATION": "false",
+        "ALLOW_UPDATE_OPERATION": "false",
+        "ALLOW_DELETE_OPERATION": "false"
+      }
+    }
+  }
+}

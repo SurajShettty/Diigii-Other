@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python nirf_db_check.py)",
+      "Bash(nslookup collpolldb10-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com)",
+      "mcp__mysql__list_tables",
+      "mcp__mysql__read_query",
+      "mcp__mysql__describe_table"
+    ]
+  }
+}
