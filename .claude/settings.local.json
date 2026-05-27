@@ -5,7 +5,12 @@
       "Bash(nslookup collpolldb10-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com)",
       "mcp__mysql__list_tables",
       "mcp__mysql__read_query",
-      "mcp__mysql__describe_table"
+      "mcp__mysql__describe_table",
+      "Read(//c/Users/suraj/Downloads/**)",
+      "Bash(pip show *)",
+      "Bash(findstr /C:\"Name\" /C:\"Version\")",
+      "Bash(python -c \"import requests, openpyxl; print\\('deps ok'\\)\")",
+      "Bash(dir /s /b *.xlsx *.csv)"
     ]
   }
 }
