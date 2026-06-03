@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from num2words import num2words
+import re
 import logging
 import warnings
 from pathlib import Path
@@ -856,6 +857,80 @@ def format_final_report(df):
     return df_reordered
 
 # ============================================================================
+# TEMPLATE COLUMN FILTERING
+# ============================================================================
+
+SUBJECT_COL_RE = re.compile(r'^SUB(\d+)(.*)$')
+
+
+def load_template_columns(template_path):
+    """Read the header row of the uploaded template file and return its columns in order."""
+    p = Path(template_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Template file not found: {template_path}")
+    if p.suffix.lower() in ('.xlsx', '.xls'):
+        tdf = pd.read_excel(p, nrows=0)
+    else:
+        tdf = pd.read_csv(p, nrows=0)
+    return list(tdf.columns)
+
+
+def apply_template_columns(df, template_cols):
+    """Restrict df to the template's columns, expanding the single subject block
+    (SUB1...) found in the template to cover every subject present in df.
+
+    The template lists subject columns once (for subject 1, e.g. after DEPARTMENT).
+    That same block of columns is repeated for SUB2, SUB3, ... up to the maximum
+    number of subjects produced for any student. All other (student-level) columns
+    are kept exactly as they appear in the template; any column not produced by the
+    report is added empty so the output matches the template exactly.
+    """
+    logger.info("Applying template columns...")
+
+    # Determine the max subject index present in the generated data
+    max_subjects = 0
+    for col in df.columns:
+        m = SUBJECT_COL_RE.match(col)
+        if m:
+            max_subjects = max(max_subjects, int(m.group(1)))
+
+    # Subject-column suffixes from the template, in template order (e.g. 'NM', '', '_TOT').
+    # Only take the FIRST subject block — the template may list more than one sample
+    # subject (SUB1..., SUB2...); we replicate a single block, not all of them.
+    subject_suffixes = []
+    first_subject_num = None
+    for col in template_cols:
+        m = SUBJECT_COL_RE.match(col)
+        if m:
+            if first_subject_num is None:
+                first_subject_num = m.group(1)
+            if m.group(1) == first_subject_num:
+                subject_suffixes.append(m.group(2))
+
+    # Build the final ordered column list: keep template order, but at the position
+    # of the first subject column, expand the whole subject block for subjects 1..N.
+    final_cols = []
+    expanded = False
+    for col in template_cols:
+        if SUBJECT_COL_RE.match(col):
+            if not expanded:
+                for i in range(1, max_subjects + 1):
+                    for suffix in subject_suffixes:
+                        final_cols.append(f"SUB{i}{suffix}")
+                expanded = True
+            # other subject columns from the template are part of the same block; skip
+            continue
+        final_cols.append(col)
+
+    # Add any template columns the report didn't produce as empty columns
+    for col in final_cols:
+        if col not in df.columns:
+            df[col] = ''
+
+    return df[final_cols]
+
+
+# ============================================================================
 # MAIN FUNCTION
 # ============================================================================
 
@@ -892,7 +967,19 @@ def main():
         print(f"\nUsing RE-EXAM mode")
     else:
         print(f"\nUsing NORMAL EXAM mode")
-    
+
+    # Get template file (defines which columns appear in the output)
+    template_path = input("\nEnter path to template file (defines output columns): ").strip().strip('"')
+    if not template_path:
+        print("Error: Template file path cannot be empty!")
+        return
+    try:
+        template_cols = load_template_columns(template_path)
+    except Exception as e:
+        print(f"Error: Could not read template file - {e}")
+        return
+    print(f"Loaded {len(template_cols)} columns from template")
+
     # Connect to database
     print("\nConnecting to database...")
     conn = connect_to_tenant_database(tenant_name)
@@ -927,7 +1014,10 @@ def main():
         
         # Format final report
         df_final = format_final_report(df_merged)
-        
+
+        # Restrict output to the template's columns (subject block repeated per subject)
+        df_final = apply_template_columns(df_final, template_cols)
+
         # Get term name for output filename
         term_name = df_exam['term_name'].iloc[0] if 'term_name' in df_exam.columns and not df_exam.empty else f"Term_{term_id}"
         
