@@ -1,18 +1,11 @@
 import pandas as pd
 import numpy as np
 from num2words import num2words
-import os
-import sys
 import logging
 import warnings
 from pathlib import Path
 from datetime import datetime
 import pymysql
-from dotenv import load_dotenv
-
-# Add TR Report Progress Archive to path to import helper
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'TR Report Workspace', 'TR Report Progress Archive'))
-from helper import connect_to_tenant_database
 
 warnings.filterwarnings('ignore')
 
@@ -20,10 +13,34 @@ warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Load environment files from TR Report Progress Archive
-archive_path = os.path.join(os.path.dirname(__file__), '..', 'TR Report Workspace', 'TR Report Progress Archive')
-load_dotenv(os.path.join(archive_path, 'config.env'))
-load_dotenv(os.path.join(archive_path, 'database_index.env'))
+# ============================================================================
+# DATABASE CREDENTIALS (embedded — no external helper / .env dependency)
+# ============================================================================
+
+DB_CONFIG = {
+    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "user": "suraj_shetty",
+    "password": "pTXr8yJmOR",
+    "database": "collpoll_jspm",
+}
+
+# Alternate tenant DB (uncomment / edit as needed):
+# DB_CONFIG = {
+#     "host": "digiidb3-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+#     "user": "suraj_shetty",
+#     "password": "AdaQwNaEPo",
+#     "database": "collpoll_isbr",
+# }
+
+
+def connect_to_tenant_database(tenant_name):
+    """Connect to the tenant database using the embedded credentials above."""
+    return pymysql.connect(
+        host=DB_CONFIG["host"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+        database=DB_CONFIG["database"],
+    )
 
 # ============================================================================
 # EMBEDDED SQL QUERIES - EXAM DATA (SPLIT INTO 2 QUERIES)
@@ -915,7 +932,7 @@ def main():
         term_name = df_exam['term_name'].iloc[0] if 'term_name' in df_exam.columns and not df_exam.empty else f"Term_{term_id}"
         
         # Save output
-        output_dir = Path(r"C:\Users\shami\Documents\NAD Report Outputs")
+        output_dir = Path(r"C:\Users\suraj\OneDrive\Desktop\NAD Report Outputs")
         output_dir.mkdir(parents=True, exist_ok=True)
         
         tenant_output_dir = output_dir / tenant_name
