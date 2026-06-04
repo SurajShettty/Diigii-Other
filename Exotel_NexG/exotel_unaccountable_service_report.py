@@ -9,9 +9,9 @@ import xlsxwriter
 start_time = time.time()
 
 # === CONFIG ===
-exotel_folder = r"C:\Users\suraj\Downloads\NEXTGSMSREPORT_2026_05_04_11_54_35_5435"
-user_details_file = r"C:\Users\suraj\Downloads\My Python\Exotel_NexG\user_details_for_nexG 04-05-2026.csv"
-sms_templates_file = r"C:\Users\suraj\Downloads\My Python\Exotel_NexG\SMS Templates Active - Sheet1.csv"
+exotel_folder = r"C:\Users\suraj\Downloads\202664112222_2026_06_04_11_23_32_2332"
+user_details_file = r"C:\Users\suraj\Downloads\Diigii-Other\Exotel_NexG\user_details_for_nexG 04-06-2026.csv"
+sms_templates_file = r"C:\Users\suraj\Downloads\Diigii-Other\Exotel_NexG\SMS Templates Active - Sheet1.csv"
 output_file = fr"C:\Users\suraj\OneDrive\Desktop\nexG_sms_report_{datetime.now():%Y%m%d_%H%M%S}.xlsx"
 
 # === STEP 1: READ & COMBINE EXOTEL CSV FILES ===
