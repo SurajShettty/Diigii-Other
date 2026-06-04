@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "pTXr8yJmOR",
-    "database": "collpoll_jspm",
+    "password": "3qIGaWCdlh",
+    "database": "collpoll_msu",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
@@ -30,7 +30,7 @@ DB_CONFIG = {
 #     "host": "digiidb3-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
 #     "user": "suraj_shetty",
 #     "password": "AdaQwNaEPo",
-#     "database": "collpoll_isbr",
+#     "database": "collpoll_cu",
 # }
 
 
@@ -95,8 +95,8 @@ INNER JOIN ems_examination_student_course_grade eesc
     ON eesc.term_course_id = tc.id AND eesc.student_ukid = espe.ukid
 INNER JOIN ems_examination_course_schema ecs 
     ON ecs.examination_id = ee.id AND ecs.course_id = tc.course_id
-WHERE 
-    t.id = {TERM_ID}
+WHERE
+    t.id IN ({TERM_IDS})
     AND esce.enrollment_status != 'NOT_ENROLLED'
 GROUP BY eesc.student_ukid, tc.course_name, t.name
 """
@@ -126,7 +126,7 @@ WHERE exam_id IN (
     FROM ems_student_programme_enrollment esp
     INNER JOIN ems_examination ee ON ee.id = esp.exam_id
     INNER JOIN term t ON t.id = ee.term_id
-    WHERE t.id = {TERM_ID}
+    WHERE t.id IN ({TERM_IDS})
 )
 """
 
@@ -142,7 +142,7 @@ WHERE exam_id IN (
     FROM ems_student_programme_enrollment esp
     INNER JOIN ems_examination ee ON ee.id = esp.exam_id
     INNER JOIN term t ON t.id = ee.term_id
-    WHERE t.id = {TERM_ID}
+    WHERE t.id IN ({TERM_IDS})
 )
 """
 
@@ -287,12 +287,17 @@ GROUP BY ukid
 # QUERY EXECUTION FUNCTIONS
 # ============================================================================
 
-def fetch_exam_data(conn, term_id, is_re_exam=False):
-    """Fetch exam data using split queries and process in Python"""
-    logger.info(f"Fetching {'re-exam' if is_re_exam else 'normal'} exam data for term_id: {term_id}")
-    
-    # Query 1: Fetch exam details
-    query1 = QUERY_1_EXAM_DATA.replace('{TERM_ID}', str(term_id))
+def _term_ids_sql(term_ids):
+    """Render a list of term IDs as a SQL IN-list, e.g. [1, 2, 3] -> '1,2,3'."""
+    return ','.join(str(int(t)) for t in term_ids)
+
+
+def fetch_exam_data(conn, term_ids, is_re_exam=False):
+    """Fetch exam data for all given term IDs in a single query and process in Python"""
+    logger.info(f"Fetching {'re-exam' if is_re_exam else 'normal'} exam data for term_ids: {term_ids}")
+
+    # Query 1: Fetch exam details (all terms at once to minimise DB round-trips)
+    query1 = QUERY_1_EXAM_DATA.replace('{TERM_IDS}', _term_ids_sql(term_ids))
     cursor = conn.cursor()
     cursor.execute(query1)
     columns1 = [desc[0] for desc in cursor.description]
@@ -410,10 +415,10 @@ def fetch_exam_data(conn, term_id, is_re_exam=False):
     
     return df_exam
 
-def fetch_cgpa_data(conn, term_id):
-    """Fetch CGPA data"""
+def fetch_cgpa_data(conn, term_ids):
+    """Fetch CGPA data for all given term IDs"""
     logger.info("Fetching CGPA data...")
-    query = QUERY_2_CGPA.replace('{TERM_ID}', str(term_id))
+    query = QUERY_2_CGPA.replace('{TERM_IDS}', _term_ids_sql(term_ids))
     
     cursor = conn.cursor()
     cursor.execute(query)
@@ -427,10 +432,10 @@ def fetch_cgpa_data(conn, term_id):
     logger.info(f"  Fetched {len(df)} CGPA records")
     return df
 
-def fetch_sgpa_data(conn, term_id):
-    """Fetch SGPA data"""
+def fetch_sgpa_data(conn, term_ids):
+    """Fetch SGPA data for all given term IDs"""
     logger.info("Fetching SGPA data...")
-    query = QUERY_3_SGPA.replace('{TERM_ID}', str(term_id))
+    query = QUERY_3_SGPA.replace('{TERM_IDS}', _term_ids_sql(term_ids))
     
     cursor = conn.cursor()
     cursor.execute(query)
@@ -799,7 +804,16 @@ def merge_with_user_details(df_courses, df_user_details):
 def format_final_report(df):
     """Format final report with column ordering and transformations"""
     logger.info("Formatting final report...")
-    
+
+    # Organisation-level columns (ORG_*) are the same institution for every student,
+    # so force them to a single value taken from the first row (first non-null, to
+    # avoid picking up an empty leading cell) and broadcast it to all rows.
+    if not df.empty:
+        org_cols = [col for col in df.columns if col.startswith("ORG_")]
+        for col in org_cols:
+            non_null = df[col].dropna()
+            df[col] = non_null.iloc[0] if not non_null.empty else df[col].iloc[0]
+
     # Rename sem_year_no to SEM
     df.rename(columns={"sem_year_no": "SEM"}, inplace=True)
     
@@ -945,16 +959,27 @@ def main():
         print("Error: Tenant name cannot be empty!")
         return
     
-    term_id_input = input("Enter term ID: ").strip()
+    term_id_input = input("Enter term ID(s) (comma-separated for multiple): ").strip()
     if not term_id_input:
         print("Error: Term ID cannot be empty!")
         return
-    
+
     try:
-        term_id = int(term_id_input)
+        # Accept one or many comma-separated term IDs; de-duplicate while preserving order
+        term_ids = []
+        for part in term_id_input.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            tid = int(part)
+            if tid not in term_ids:
+                term_ids.append(tid)
+        if not term_ids:
+            raise ValueError("no valid term IDs")
     except ValueError:
-        print("Error: Term ID must be a valid integer!")
+        print("Error: Term ID(s) must be valid integers (e.g. 12 or 12,15,18)!")
         return
+    print(f"Term ID(s): {', '.join(str(t) for t in term_ids)}")
     
     # Get exam type input (0 for exam, 1 for re-exam)
     exam_type_input = input("Enter exam type (0 for Exam, 1 for Re-exam): ").strip()
@@ -985,59 +1010,65 @@ def main():
     conn = connect_to_tenant_database(tenant_name)
     
     try:
-        # Fetch data
+        # Fetch data — all term IDs are fetched together (one query each) to keep DB load low
         print("\nFetching data from database...")
-        df_exam = fetch_exam_data(conn, term_id, is_re_exam)
-        
+        df_exam = fetch_exam_data(conn, term_ids, is_re_exam)
+
         if df_exam.empty:
             print("Error: No exam data found!")
             return
-        
+
         # Extract student UKIDs from exam data
         student_ukids = df_exam['student_ukid'].unique().tolist()
         logger.info(f"Found {len(student_ukids)} unique students")
-        
-        df_cgpa = fetch_cgpa_data(conn, term_id)
-        df_sgpa = fetch_sgpa_data(conn, term_id)
+
+        df_cgpa = fetch_cgpa_data(conn, term_ids)
+        df_sgpa = fetch_sgpa_data(conn, term_ids)
         df_user_details = fetch_user_details(conn, tenant_name, student_ukids)
-        
+
         # Process data
         print("\nProcessing data...")
         df_exam = merge_exam_data_with_schema(df_exam, df_cgpa, df_sgpa)
         df_exam = process_course_data(df_exam)
-        
+
         # Create course records
         df_courses = create_course_records(df_exam)
-        
+
         # Merge with user details
         df_merged = merge_with_user_details(df_courses, df_user_details)
-        
+
         # Format final report
         df_final = format_final_report(df_merged)
 
-        # Restrict output to the template's columns (subject block repeated per subject)
-        df_final = apply_template_columns(df_final, template_cols)
-
-        # Get term name for output filename
-        term_name = df_exam['term_name'].iloc[0] if 'term_name' in df_exam.columns and not df_exam.empty else f"Term_{term_id}"
-        
-        # Save output
+        # Save output — one file per term
         output_dir = Path(r"C:\Users\suraj\OneDrive\Desktop\NAD Report Outputs")
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         tenant_output_dir = output_dir / tenant_name
         tenant_output_dir.mkdir(parents=True, exist_ok=True)
-        
-        term_name_clean = term_name.replace('/', '_').replace('\\', '_').replace(':', '_')
-        output_file = tenant_output_dir / f"NAD_{term_name_clean}.csv"
-        
-        df_final.to_csv(output_file, index=False)
+
         print(f"\n{'='*60}")
         print(f"NAD REPORT GENERATION COMPLETE!")
         print(f"{'='*60}")
-        print(f"Report saved: {output_file}")
+
+        # Split by term BEFORE template filtering (term_name may not be a template column),
+        # then restrict each term's output to the template's columns.
+        if 'term_name' in df_final.columns:
+            for term_name, df_term in df_final.groupby('term_name'):
+                df_term_out = apply_template_columns(df_term.copy(), template_cols)
+                term_name_clean = str(term_name).replace('/', '_').replace('\\', '_').replace(':', '_')
+                output_file = tenant_output_dir / f"NAD_{term_name_clean}.xlsx"
+                df_term_out.to_excel(output_file, index=False)
+                print(f"Report saved: {output_file} ({len(df_term_out)} rows)")
+        else:
+            df_out = apply_template_columns(df_final, template_cols)
+            term_label = '_'.join(str(t) for t in term_ids)
+            output_file = tenant_output_dir / f"NAD_Terms_{term_label}.xlsx"
+            df_out.to_excel(output_file, index=False)
+            print(f"Report saved: {output_file} ({len(df_out)} rows)")
+
         print(f"Location: {tenant_output_dir}")
-        
+
     finally:
         conn.close()
         print("\nDatabase connection closed")
