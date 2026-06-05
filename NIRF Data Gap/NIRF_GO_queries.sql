@@ -37,7 +37,7 @@ ORDER  BY passing_year;
 -- GO1.2  Validate against transcripts (degrees actually issued).
 SELECT COUNT(*) AS phd_transcripts
 FROM   ems_examination_student_transcript t
-JOIN   student_profile sp ON sp.ukid = t.student_ukid
+JOIN   student_profile sp ON sp.ukid = t.ukid
 JOIN   programme p        ON p.programme_id = sp.programme_id
 WHERE  p.programme_type_id = 3;
 -- NOTE: confirm the transcript table's student key column name if this errors
