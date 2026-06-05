@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "3qIGaWCdlh",
-    "database": "collpoll_msu",
+    "password": "pTXr8yJmOR",
+    "database": "collpoll_jspm",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
@@ -64,6 +64,8 @@ SELECT
         ) + CAST(t.sequence AS SIGNED)
         AS SIGNED
     ) as sem_year_no,
+    (CAST(t.acad_year_start AS SIGNED) - CAST(sp.year_of_joining AS SIGNED) + 1) AS year_of_study,
+    pt.name AS programme_type,
     p.system,
     tc.course_name,
     tc.course_credits,
@@ -87,9 +89,11 @@ INNER JOIN term_course tc
     ON tc.id = esce.term_course_id
 INNER JOIN student_profile sp
     ON sp.ukid = espe.ukid
-INNER JOIN programme p 
-    ON p.programme_id = sp.programme_id 
-INNER JOIN term t 
+INNER JOIN programme p
+    ON p.programme_id = sp.programme_id
+LEFT JOIN programme_types pt
+    ON pt.id = p.programme_type_id
+INNER JOIN term t
     ON t.id = ee.term_id
 INNER JOIN ems_examination_student_course_grade eesc
     ON eesc.term_course_id = tc.id AND eesc.student_ukid = espe.ukid
@@ -607,6 +611,70 @@ def process_course_data(df_exam):
     
     return df_exam
 
+def classify_programme_type(programme_type):
+    """Bucket a raw programme_type name into 'UG', 'PG', 'PHD', 'DIPLOMA',
+    'CERTIFICATE' (or None if unknown).
+
+    'diploma'/'certificate' are checked before pg/ug so a name like 'PG Diploma'
+    is treated as a Diploma (UG-level by year), per client instruction.
+    """
+    if programme_type is None or (isinstance(programme_type, float) and pd.isna(programme_type)):
+        return None
+    p = str(programme_type).strip().lower()
+    if not p:
+        return None
+    if 'phd' in p or 'ph.d' in p or 'doctora' in p:
+        return 'PHD'
+    if 'diploma' in p:
+        return 'DIPLOMA'
+    if 'certificate' in p or 'certification' in p:
+        return 'CERTIFICATE'
+    if p.startswith('pg') or 'post' in p or 'master' in p:
+        return 'PG'
+    if p.startswith('ug') or 'under' in p or 'bachelor' in p:
+        return 'UG'
+    return None
+
+
+def compute_ncrf_level(programme_type, year_of_study):
+    """Derive the NCrF level from programme type and the student's year of study.
+
+    Mapping (per client-shared NCrF Table 3):
+        UG / Diploma  1st/2nd/3rd/4th yr -> 4.5 / 5.0 / 5.5 / 6.0
+        Certificate   (any year)         -> 4.5  (UG-Certificate)
+        PG            1st/2nd yr         -> 6.5 / 7.0
+        PhD           (any year)         -> 8.0
+    Year of study is computed elsewhere as (acad_year_start - year_of_joining + 1),
+    so a 2023 batch is in year 1 during AY 2023-24, year 2 in 2024-25, etc.
+    """
+    cat = classify_programme_type(programme_type)
+    if cat is None:
+        return None
+
+    # Levels independent of year of study
+    if cat == 'PHD':
+        return 8.0
+    if cat == 'CERTIFICATE':
+        return 4.5
+
+    if year_of_study is None or pd.isna(year_of_study):
+        return None
+    try:
+        y = int(year_of_study)
+    except (ValueError, TypeError):
+        return None
+    if y < 1:
+        y = 1
+
+    if cat in ('UG', 'DIPLOMA'):
+        # 4th year (Honours / Research) and beyond cap at 6.0
+        return {1: 4.5, 2: 5.0, 3: 5.5}.get(y, 6.0)
+    if cat == 'PG':
+        # 2nd year and beyond cap at 7.0
+        return {1: 6.5}.get(y, 7.0)
+    return None
+
+
 def create_course_records(df_exam):
     """Create course records in NAD format"""
     logger.info("Creating course records in NAD format...")
@@ -744,6 +812,12 @@ def create_course_records(df_exam):
         row["SGPA"] = group.iloc[-1].get('sgpa') if 'sgpa' in group.columns else None
         row["CGPA"] = group.iloc[-1].get('cgpa') if 'cgpa' in group.columns else None
         row["TERM_TYPE"] = group.iloc[-1].get('system', '')
+
+        # NCrF level — derived from programme type + year of study (same for all courses in group).
+        # Stored historically per term, not from the student's current/latest level.
+        ncrf_ptype = group.iloc[-1].get('programme_type') if 'programme_type' in group.columns else None
+        ncrf_yos = group.iloc[-1].get('year_of_study') if 'year_of_study' in group.columns else None
+        row["NCRF_LEVEL"] = compute_ncrf_level(ncrf_ptype, ncrf_yos)
         
         row["TOT_MAX"] = tot_max
         row["TOT_MIN"] = tot_min
@@ -760,7 +834,7 @@ def create_course_records(df_exam):
     
     # Create column order
     base_cols = ["student_ukid", "term_name", "sem_year_no"]
-    other_cols = ["SGPA", "CGPA", "TERM_TYPE"]
+    other_cols = ["SGPA", "CGPA", "TERM_TYPE", "NCRF_LEVEL"]
     course_cols = []
     for i in range(1, max_courses + 1):
         course_cols += [
