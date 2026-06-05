@@ -1,0 +1,42 @@
+-- =====================================================================
+-- NIRF Parameter 5 — Peer Perception (PR): SQL queries
+-- DB: collpoll_university @ digiidbcommon...ap-south-1.rds.amazonaws.com
+-- Companion to NIRF_PR_data_gap_report.md
+--
+-- RESULT: NO QUERIES. PR is 100% external.
+-- NIRF conducts academic & employer perception surveys CENTRALLY (Ministry of
+-- Education). Institutions do not submit PR data in the DCF -- NIRF populates
+-- these cells from its own survey infrastructure and releases the scores only
+-- in the final NIRF result. Nothing in this parameter is sourced from CollPoll.
+--
+-- Schema verification (live, 2026-06-05): a wildcard table scan for
+--   mou / collaborat / partner / foreign / rank / accredit / recogni / award /
+--   survey / perception / reputation / exchange
+-- returned ONLY internal-feedback tables, NONE of which feed NIRF PR:
+--   campus_survey_template_access, campus_survey_templates,
+--   survey_campaign_event_audience, survey_management_campaign,
+--   survey_management_campaign_audience, survey_management_campaign_event,
+--   survey_management_category, survey_management_dimension,
+--   survey_management_template, survey_management_template_version
+-- These are the in-app campus feedback/satisfaction surveys -- they are NOT the
+-- NIRF academic/employer peer-perception surveys. Do not use them for PR.
+--
+-- No mou / collaboration / partner / foreign_institution / ranking /
+-- accreditation / award / perception / reputation tables exist.
+--
+-- Re-run the verification scan anytime:
+--   SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+--   WHERE TABLE_SCHEMA='collpoll_university'
+--     AND (TABLE_NAME LIKE '%mou%' OR TABLE_NAME LIKE '%collaborat%'
+--          OR TABLE_NAME LIKE '%partner%' OR TABLE_NAME LIKE '%foreign%'
+--          OR TABLE_NAME LIKE '%rank%' OR TABLE_NAME LIKE '%accredit%'
+--          OR TABLE_NAME LIKE '%recogni%' OR TABLE_NAME LIKE '%award%'
+--          OR TABLE_NAME LIKE '%survey%' OR TABLE_NAME LIKE '%perception%'
+--          OR TABLE_NAME LIKE '%reputation%' OR TABLE_NAME LIKE '%exchange%')
+--   ORDER BY TABLE_NAME;
+--
+-- For self-tracking cells (Industry Recognition, Media Visibility, International
+-- Collaborations, Global Ranking Mentions) source from the Accreditation Cell,
+-- PR/Comms Office, International Programs Office, and IQAC respectively -- none
+-- are in the database.
+-- =====================================================================
