@@ -169,15 +169,29 @@ def parse_class_id(value):
     return None, False
 
 
+def resolve_input_path():
+    """Work out which file to process.
+
+    Priority:
+      1. A path given on the command line / dragged onto the .exe (argv[1]).
+      2. Otherwise, always ask the user to type or drag-in the path.
+    """
+    if len(sys.argv) >= 2 and sys.argv[1].strip():
+        return sys.argv[1].strip().strip('"').strip("'")
+    # always ask (great for a double-clicked .exe)
+    print("Tip: you can also drag your Excel file onto this program's icon.\n")
+    raw = input("Enter (or drag-and-drop) the path to the Excel file: ").strip()
+    # Windows wraps drag-dropped paths in quotes - strip them.
+    return raw.strip('"').strip("'")
+
+
 def main():
-    # command-line args override the placeholders at the top of the file
-    in_path  = sys.argv[1] if len(sys.argv) >= 2 else INPUT_PATH
+    in_path  = resolve_input_path()
     out_path = sys.argv[2] if len(sys.argv) >= 3 else OUTPUT_PATH
 
-    if not os.path.exists(in_path):
+    if not in_path or not os.path.exists(in_path):
         print(f"ERROR: input file not found: {in_path}")
-        print("Edit INPUT_PATH at the top of the script, or pass it on the command line.")
-        sys.exit(1)
+        return
 
     # no explicit output -> same name as input with a "_cleaned" suffix,
     # saved next to the input file.
@@ -268,4 +282,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        # show the problem instead of flashing the window shut
+        print(f"\nSomething went wrong: {exc}")
+        if "Permission" in type(exc).__name__ or "Permission" in str(exc):
+            print("Tip: close the output file in Excel if it's open, then try again.")
+    # keep the console window open when launched by double-click / drag-drop
+    try:
+        input("\nDone. Press Enter to close this window...")
+    except EOFError:
+        pass
