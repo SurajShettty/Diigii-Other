@@ -42,16 +42,13 @@ OUTPUT_PATH = None
 
 
 # ---- date-recovery behaviour ------------------------------------------------
-# A cell that Excel already stored as a real date is UNAMBIGUOUS - it is a
-# specific calendar date - so we just format it dd/mm/yyyy and leave the day and
-# month exactly as Excel read them (your Excel reads dd/mm correctly).
-#
-# SWAP_FLIPPED_DATES is an OPT-IN repair for the opposite situation: an Excel
-# whose locale misread dd/mm input as mm/dd at import time. Turning it on swaps
-# day<->month on any real-date cell with day <= 12, which will CORRUPT correct
-# dates like 10/06/2026 (10 Jun) into 06/10/2026 (6 Oct). Leave it False unless
-# you have confirmed your file was actually flipped on import.
-SWAP_FLIPPED_DATES = False
+# Your input is meant to be dd/mm/yyyy. Under a US (mm/dd) locale Excel can
+# silently flip ambiguous dates when it converts them to real datetime cells.
+# When SWAP_FLIPPED_DATES is True, any cell Excel stored as a real datetime
+# whose day component is <= 12 is treated as a flip and the month/day are
+# swapped back to restore dd/mm intent. Each swap is flagged in the Error column
+# (prefixed "NOTE:") so you can sanity-check it. Set to False to disable.
+SWAP_FLIPPED_DATES = True
 
 
 # ---- column headers as they appear in row 1 of the template -----------------
