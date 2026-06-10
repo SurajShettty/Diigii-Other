@@ -7,21 +7,21 @@
 -- AY label = CONCAT(start,'-',RIGHT(start+1,2))  e.g. 2023 -> '2023-24'.
 -- AY boundary for date columns = July->June: ay = YEAR(d) - (MONTH(d) < 7).
 --
--- SNAPSHOT-ONLY metrics (no historical AY in the DB) are emitted ONLY in
--- the latest AY row, suffixed _current, NULL in earlier rows:
---   * faculty count / FSR / women-faculty  (faculty.year_of_joining 0/179)
---   * all infrastructure                    (no date column at all)
---   * UG appeared / pass%                   (cgpa_percentage has no AY col)
--- These are flagged inline so they are not read as a historical trend.
+-- ALL metrics are AY-wise. Where a table has no natural academic-year column,
+-- AY is derived from created_timestamp, CUMULATIVE (= stock on/before that AY):
+--   * faculty count / FSR / women-faculty -> faculty_profile.created_timestamp
+--   * infrastructure capacity             -> infrastructure_master.created_timestamp
+--   * exams (appeared / pass / class)      -> exam -> term.acad_year_start
+-- (faculty_profile has no year_of_joining/termination flag; infra has no other
+--  date. Switch the cumulative '<= s.ay' to '= s.ay' for per-AY additions.)
 --
 -- CAVEAT (live): student_profile.year_of_joining contains FUTURE intake years
--- (2025, 2026), so "last 3" for DAG1/DAG2 resolves to 2024-25 / 2025-26 /
--- 2026-27 and the snapshot lands on 2026-27. To report only completed AYs,
--- add  WHERE year_of_joining <= 2025  to the coh/spine CTEs.
+-- (2025, 2026), so DAG1's "last 3" resolves to 2024-25 / 2025-26 / 2026-27.
+-- To report only completed AYs, add  WHERE year_of_joining <= 2025  to coh.
 -- Validated against live data 2026-06-10. All 5 queries run; values below.
---   DAG1 enrolled ~1,672 (2024-25); women-admitted 28.9% / 6.7% / 20%
---   DAG2 85 classrooms / 3,600 seats / 14 labs (snapshot @ 2026-27)
---   DAG3 first-class 2 (2022-23) & 9 (2023-24); pass% 47.06 (all-prog snapshot)
+--   DAG1 2024-25: enrolled 1,672, faculty 78, FSR 21.4 ; 2025-26 faculty 179, FSR 9.4
+--   DAG2 2024-25: 72 classrooms/3,400 seats/9 labs -> 2025-26: 85/3,600/14
+--   DAG3 2024-25: 146 appeared, 68 results, 47.06% pass, 21 first-class, 9 distinction
 --   DAG4 placed 6 / 46 / 0 ; rate 60% / 49% ; median 6.0 / 4.05 LPA
 --   DAG5 (test data) 3 proj / 0.30 L ; 2 proj / 20 L
 -- =====================================================================
@@ -29,15 +29,16 @@
 
 -- #####################################################################
 -- DAG 1 / people_metrics  (AY = student admission cohort, last 3)
--- AY-wise: enrolled, admitted, women.  Latest-AY-only: faculty/FSR/women-fac.
+-- AY-wise: enrolled, admitted, women, + faculty/FSR/women-faculty
+-- (faculty cumulative by faculty_profile.created_timestamp AY).
 -- #####################################################################
 WITH coh AS (
-  SELECT year_of_joining AS ay,
-         COUNT(*)               AS students_admitted,
-         SUM(gender='female')   AS women_admitted
-  FROM   student_profile
-  WHERE  year_of_joining IS NOT NULL
-  GROUP  BY year_of_joining
+  SELECT sp.year_of_joining AS ay,
+         COUNT(*)                 AS students_admitted,
+         SUM(sp.gender='female')  AS women_admitted
+  FROM   student_profile sp
+  WHERE  sp.year_of_joining IS NOT NULL
+  GROUP  BY sp.year_of_joining
 ),
 spine AS (SELECT ay FROM coh ORDER BY ay DESC LIMIT 3),
 waiv AS (
@@ -56,13 +57,23 @@ SELECT
   c.women_admitted,
   ROUND(100*c.women_admitted/NULLIF(c.students_admitted,0),2)            AS pct_women_admitted,
   ROUND(COALESCE(w.amt,0)/100000,2)                                      AS waiver_lakhs,
-  -- ---- snapshot-only: latest AY row only ----
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN (SELECT COUNT(*) FROM faculty_profile) END AS faculty_current,
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN
-       ROUND((SELECT COUNT(*) FROM student_profile)/NULLIF((SELECT COUNT(*) FROM faculty_profile),0),2) END AS fsr_current,
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN (SELECT SUM(gender='female') FROM faculty_profile) END AS women_faculty_current,
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN
-       ROUND(100*(SELECT SUM(gender='female') FROM faculty_profile)/NULLIF((SELECT COUNT(*) FROM faculty_profile),0),2) END AS pct_women_faculty_current
+  -- faculty roster = CUMULATIVE by created_timestamp AY (faculty_profile has no
+  -- year_of_joining and no termination flag, so this counts faculty whose record
+  -- existed on/before each AY). Switch '<= s.ay' to '= s.ay' for per-AY additions.
+  (SELECT COUNT(*) FROM faculty_profile f
+     WHERE YEAR(f.created_timestamp)-(MONTH(f.created_timestamp)<7) <= s.ay) AS faculty_headcount,
+  ROUND(
+     (SELECT COUNT(*) FROM student_profile sp
+        WHERE sp.year_of_joining <= s.ay+1
+          AND (sp.expected_year_of_passing IS NULL OR sp.expected_year_of_passing >= s.ay))
+     / NULLIF((SELECT COUNT(*) FROM faculty_profile f
+        WHERE YEAR(f.created_timestamp)-(MONTH(f.created_timestamp)<7) <= s.ay),0), 2) AS fsr,
+  (SELECT SUM(f.gender='female') FROM faculty_profile f
+     WHERE YEAR(f.created_timestamp)-(MONTH(f.created_timestamp)<7) <= s.ay) AS women_faculty,
+  ROUND(100*(SELECT SUM(f.gender='female') FROM faculty_profile f
+        WHERE YEAR(f.created_timestamp)-(MONTH(f.created_timestamp)<7) <= s.ay)
+     / NULLIF((SELECT COUNT(*) FROM faculty_profile f
+        WHERE YEAR(f.created_timestamp)-(MONTH(f.created_timestamp)<7) <= s.ay),0), 2) AS pct_women_faculty
 FROM   spine s
 LEFT   JOIN coh  c ON c.ay = s.ay
 LEFT   JOIN waiv w ON w.ay = s.ay
@@ -70,66 +81,77 @@ ORDER  BY s.ay;
 
 
 -- #####################################################################
--- DAG 2 / infrastructure_metrics  (no date dimension -> single snapshot row,
--- labelled with the latest student AY per the snapshot rule)
+-- DAG 2 / infrastructure_metrics  (AY = infrastructure_master.created_timestamp,
+-- last 3).  Capacity is CUMULATIVE (stock created on/before each AY) -- NIRF
+-- wants total available infrastructure, not per-AY additions.
+-- NOTE live: infra was bulk-loaded in AY 2024-25 (955 rows) + 31 in 2025-26,
+-- so only 2 AYs exist and growth is small. Switch '<= s.ay' to '= s.ay' for adds.
 -- #####################################################################
-WITH spine AS (
-  SELECT MAX(year_of_joining) AS ay FROM student_profile WHERE year_of_joining IS NOT NULL
-)
-SELECT
-  CONCAT(ay,'-',RIGHT(ay+1,2)) AS academic_year,
-  (SELECT COUNT(*)                  FROM infrastructure_master WHERE type_id=11 AND archived=0) AS classrooms_current,
-  (SELECT COALESCE(SUM(capacity),0) FROM infrastructure_master WHERE type_id=11 AND archived=0) AS classroom_seats_current,
-  (SELECT COUNT(*)                  FROM infrastructure_master WHERE type_id=7  AND archived=0) AS laboratories_current,
-  (SELECT COALESCE(SUM(capacity),0) FROM infrastructure_master WHERE type_id=7  AND archived=0) AS lab_seats_current,
-  (SELECT COUNT(*)                  FROM infrastructure_master WHERE type_id=4  AND archived=0) AS hostel_beds_current,
-  (SELECT COALESCE(SUM(capacity),0) FROM infrastructure_master WHERE type_id=2  AND archived=0) AS hostel_room_capacity_current,
-  (SELECT COALESCE(SUM(capacity),0) FROM infrastructure_master WHERE type_id=1  AND archived=0) AS hostel_building_capacity_current
-FROM spine;
-
-
--- #####################################################################
--- DAG 3 / examination_outcomes  (AY = ems_examination_student_year_percentage
--- .academic_start_year, last 3 = the only true exam AY column)
--- AY-wise: first-class / distinction.  Latest-AY-only: appeared / pass% (those
--- tables carry no academic-year column).
--- #####################################################################
-WITH param AS (SELECT 40 AS pass_pct),     -- institution pass mark (40 or 50)
-fc AS (
-  SELECT yp.academic_start_year AS ay,
-         SUM(yp.percentage>=60) AS first_class_60plus,
-         SUM(yp.percentage>=75) AS distinction_75plus,
-         COUNT(*)               AS results_with_pct
-  FROM   ems_examination_student_year_percentage yp
-  JOIN   student_profile sp ON sp.ukid = yp.student_ukid
-  JOIN   programme p        ON p.programme_id = sp.programme_id
-  WHERE  p.programme_type_id = 1 AND yp.percentage <= 100
-    AND  yp.academic_start_year IS NOT NULL
-  GROUP  BY yp.academic_start_year
+WITH infra AS (
+  SELECT type_id, capacity,
+         YEAR(created_timestamp) - (MONTH(created_timestamp) < 7) AS ay
+  FROM   infrastructure_master
+  WHERE  archived = 0 AND created_timestamp IS NOT NULL
 ),
-spine AS (SELECT ay FROM fc ORDER BY ay DESC LIMIT 3)
+spine AS (SELECT DISTINCT ay FROM infra ORDER BY ay DESC LIMIT 3)
 SELECT
   CONCAT(s.ay,'-',RIGHT(s.ay+1,2)) AS academic_year,
-  fc.first_class_60plus,
-  fc.distinction_75plus,
-  fc.results_with_pct,
-  -- ---- snapshot-only (no AY column on source tables): latest AY row only ----
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN
-    (SELECT COUNT(DISTINCT es.ukid) FROM ems_examination_student es
-       JOIN student_profile sp ON sp.ukid=es.ukid
-       JOIN programme p ON p.programme_id=sp.programme_id
-       WHERE p.programme_type_id=1) END AS ug_appeared_current,
-  -- NOTE: ems_examination_student_cgpa_percentage holds ONLY PG results today
-  --       (0 UG rows), so first-attempt pass% is institution-wide (all
-  --       programmes), NOT UG-scoped. live: 47.06% (32/68).
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN
-    (SELECT SUM(cp.re_exam_cgpa IS NULL AND cp.cgpa>=(SELECT pass_pct FROM param) AND cp.cgpa<=100)
-       FROM ems_examination_student_cgpa_percentage cp WHERE cp.cgpa<=100) END AS passed_first_attempt_current,
-  CASE WHEN s.ay=(SELECT MAX(ay) FROM spine) THEN
-    (SELECT ROUND(100*SUM(cp.re_exam_cgpa IS NULL AND cp.cgpa>=(SELECT pass_pct FROM param) AND cp.cgpa<=100)/NULLIF(COUNT(*),0),2)
-       FROM ems_examination_student_cgpa_percentage cp WHERE cp.cgpa<=100) END AS pass_pct_current
+  (SELECT COUNT(*)                  FROM infra i WHERE i.type_id=11 AND i.ay<=s.ay) AS classrooms,
+  (SELECT COALESCE(SUM(capacity),0) FROM infra i WHERE i.type_id=11 AND i.ay<=s.ay) AS classroom_seats,
+  (SELECT COUNT(*)                  FROM infra i WHERE i.type_id=7  AND i.ay<=s.ay) AS laboratories,
+  (SELECT COALESCE(SUM(capacity),0) FROM infra i WHERE i.type_id=7  AND i.ay<=s.ay) AS lab_seats,
+  (SELECT COUNT(*)                  FROM infra i WHERE i.type_id=4  AND i.ay<=s.ay) AS hostel_beds,
+  (SELECT COALESCE(SUM(capacity),0) FROM infra i WHERE i.type_id=2  AND i.ay<=s.ay) AS hostel_room_capacity,
+  (SELECT COALESCE(SUM(capacity),0) FROM infra i WHERE i.type_id=1  AND i.ay<=s.ay) AS hostel_building_capacity
 FROM   spine s
-LEFT   JOIN fc ON fc.ay = s.ay
+ORDER  BY s.ay;
+
+
+-- #####################################################################
+-- DAG 3 / examination_outcomes  (AY = term.acad_year_start, last 3)
+-- Base tables (NOT the 39-row year_percentage summary):
+--   appeared          = ems_examination_student      (296 rows, who sat exams)
+--   results / pass    = ems_examination_student_cgpa_percentage (per exam result)
+-- AY is resolved properly via  exam -> ems_examination.term_id -> term.acad_year_start
+-- so EVERY metric is genuinely AY-wise (no snapshot-only columns).
+-- pass% is institution-wide (all programmes); cgpa_percentage is PG-dominated and
+-- a UG filter collapses it to ~0. cgpa here holds PERCENTAGE (0-100); drop >100 garbage.
+-- #####################################################################
+WITH param AS (SELECT 40 AS pass_pct),     -- institution pass mark (40 or 50)
+exam_ay AS (                                -- exam -> academic-year start
+  SELECT e.id AS exam_id, t.acad_year_start AS ay
+  FROM   ems_examination e
+  JOIN   term t ON t.id = e.term_id
+  WHERE  t.acad_year_start IS NOT NULL
+),
+appeared AS (                              -- students who sat exams, per AY
+  SELECT x.ay, COUNT(DISTINCT es.ukid) AS appeared
+  FROM   ems_examination_student es
+  JOIN   exam_ay x ON x.exam_id = es.exam_id
+  GROUP  BY x.ay
+),
+res AS (                                    -- published results + pass quality, per AY
+  SELECT x.ay,
+         SUM(cp.cgpa<=100)                                                                AS results,
+         SUM(cp.re_exam_cgpa IS NULL AND cp.cgpa>=(SELECT pass_pct FROM param) AND cp.cgpa<=100) AS passed_first_attempt,
+         SUM(cp.cgpa>=60 AND cp.cgpa<=100)                                                AS first_class_60plus,
+         SUM(cp.cgpa>=75 AND cp.cgpa<=100)                                                AS distinction_75plus
+  FROM   ems_examination_student_cgpa_percentage cp
+  JOIN   exam_ay x ON x.exam_id = cp.exam_id
+  GROUP  BY x.ay
+),
+spine AS (SELECT ay FROM appeared ORDER BY ay DESC LIMIT 3)
+SELECT
+  CONCAT(s.ay,'-',RIGHT(s.ay+1,2)) AS academic_year,
+  a.appeared,
+  r.results,
+  r.passed_first_attempt,
+  ROUND(100*r.passed_first_attempt/NULLIF(r.results,0),2) AS pass_pct,
+  r.first_class_60plus,
+  r.distinction_75plus
+FROM   spine s
+LEFT   JOIN appeared a ON a.ay = s.ay
+LEFT   JOIN res      r ON r.ay = s.ay
 ORDER  BY s.ay;
 
 
