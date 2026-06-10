@@ -476,7 +476,6 @@ if __name__ == "__main__":
         left join term on term.id = cl.term_id
         where fsr.option_id is not null
         and fss.session_id = %d and fsts.submitted = 1
-                           and concat(ua.f_name, ' ', ua.l_name) = 'Darshan Trivedi'
         group by question_id, fp.ukid, fs.session_name, ft.template_name, cl.batch, c.course_code, c.course_name, cl.type, student_ukid
     ) t1
     left join (
