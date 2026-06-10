@@ -35,7 +35,10 @@ import openpyxl
 # Edit these two placeholders, OR pass paths on the command line which override
 # them:  python reformat_timetable.py <input.xlsx> [output.xlsx]
 INPUT_PATH  = r"C:\Users\suraj\Downloads\B.com and Mcom (1).xlsx"
-OUTPUT_PATH = r"C:\Users\suraj\OneDrive\Desktop\output_cleaned.xlsx"
+# Leave OUTPUT_PATH as None to auto-name it after the input, e.g.
+#   "B.com and Mcom (1).xlsx"  ->  "B.com and Mcom (1)_cleaned.xlsx"
+# (saved next to the input). Set an explicit path here to override.
+OUTPUT_PATH = None
 
 
 # ---- date-recovery behaviour ------------------------------------------------
@@ -175,6 +178,12 @@ def main():
         print(f"ERROR: input file not found: {in_path}")
         print("Edit INPUT_PATH at the top of the script, or pass it on the command line.")
         sys.exit(1)
+
+    # no explicit output -> same name as input with a "_cleaned" suffix,
+    # saved next to the input file.
+    if not out_path:
+        base, ext = os.path.splitext(in_path)
+        out_path = base + "_cleaned" + (ext or ".xlsx")
 
     wb = openpyxl.load_workbook(in_path)
     ws = wb.active
