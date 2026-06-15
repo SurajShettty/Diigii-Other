@@ -2,9 +2,9 @@ import html
 import re
 import pandas as pd
 
-SRC = r"C:\Users\suraj\Downloads\collpoll_iilmgg_ems_report202605280908.csv"
-OUT = r"C:\Users\suraj\Downloads\collpoll_iilmgg_ems_report202605280908_clean.csv"
-COL = "question"
+SRC = r"C:\Users\suraj\OneDrive\Desktop\JAIN EMS question report 14-06-2026.csv"
+OUT = r"C:\Users\suraj\OneDrive\Desktop\JAIN EMS question report 14-06-2026_clean.xlsx"
+COLS = ["question", "response_display", "selected_options"]
 
 TAG_RE = re.compile(r"<[^>]+>")
 WS_RE = re.compile(r"[ \t]+")
@@ -19,6 +19,8 @@ def clean(val):
     return "\n".join(line.strip() for line in s.splitlines() if line.strip())
 
 df = pd.read_csv(SRC, low_memory=False)
-df[COL] = df[COL].apply(clean)
-df.to_csv(OUT, index=False)
+for col in COLS:
+    if col in df.columns:
+        df[col] = df[col].apply(clean)
+df.to_excel(OUT, index=False)
 print(f"wrote {OUT} ({len(df)} rows)")
