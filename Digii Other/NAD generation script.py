@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from num2words import num2words
 import re
-import difflib
 import logging
 import warnings
 from pathlib import Path
@@ -20,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb8-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "pTXr8yJmOR",
-    "database": "collpoll_jspm",
+    "password": "CsQwi1mggE",
+    "database": "collpoll_shobhit",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
@@ -151,34 +150,6 @@ WHERE exam_id IN (
     INNER JOIN term t ON t.id = ee.term_id
     WHERE t.id IN ({TERM_IDS})
 )
-"""
-
-# Custom Gradesheet configured fields: Date of Issue, Date of Result Declaration,
-# Month & Year of Exam. These are free-text values configured per custom gradesheet
-# template (template_type = 'CUSTOM') and bound to a student only once the gradesheet
-# has been generated (row in ems_student_gradesheet). Scoped to the run's exams and
-# to the regular/re-exam gradesheet type via {EXAM_TYPES}.
-QUERY_GRADESHEET_CUSTOM_FIELDS = """
-SELECT
-    sg.student_ukid,
-    MAX(CASE WHEN cf.field_identifier = 'DATE_OF_ISSUE' THEN cf.value END) AS date_of_issue,
-    MAX(CASE WHEN cf.field_identifier = 'DATE_OF_DECLARATION' THEN cf.value END) AS date_of_declaration,
-    MAX(CASE WHEN cf.field_identifier = 'MONTH_AND_YEAR_OF_EXAM' THEN cf.value END) AS month_year_of_exam
-FROM ems_student_gradesheet sg
-INNER JOIN ems_gradesheet_settings gs ON gs.id = sg.gradesheet_setting_id
-INNER JOIN ems_custom_gradesheet_custom_fields cf ON cf.gradesheet_setting_id = gs.id
-WHERE sg.archived = 0
-    AND sg.student_ukid IN ({UKIDS})
-    AND sg.type_of_exam IN ({EXAM_TYPES})
-    AND cf.field_identifier IN ('DATE_OF_ISSUE', 'DATE_OF_DECLARATION', 'MONTH_AND_YEAR_OF_EXAM')
-    AND sg.exam_id IN (
-        SELECT DISTINCT esp.exam_id
-        FROM ems_student_programme_enrollment esp
-        INNER JOIN ems_examination ee ON ee.id = esp.exam_id
-        INNER JOIN term t ON t.id = ee.term_id
-        WHERE t.id IN ({TERM_IDS})
-    )
-GROUP BY sg.student_ukid
 """
 
 # ============================================================================
@@ -493,135 +464,6 @@ def fetch_sgpa_data(conn, term_ids):
     df = df[df['rn'] == 1].drop(columns=['rn'])
     logger.info(f"  Fetched {len(df)} SGPA records")
     return df
-
-
-def fetch_gradesheet_custom_fields(conn, term_ids, student_ukids, is_re_exam=False):
-    """Fetch Custom Gradesheet configured fields (Date of Issue / Date of Declaration /
-    Month & Year of Exam) for the given students, scoped to the run's exams and exam type."""
-    logger.info("Fetching gradesheet custom fields (Date of Issue / Declaration)...")
-
-    empty = pd.DataFrame(columns=['student_ukid', 'date_of_issue', 'date_of_declaration', 'month_year_of_exam'])
-    if not student_ukids or len(student_ukids) == 0:
-        return empty
-
-    ukids_str = ','.join(str(int(u)) for u in student_ukids)
-    # Regular run -> REGULAR gradesheets; re-exam run -> RE_EXAM or BACKLOG gradesheets.
-    exam_types = ['RE_EXAM', 'BACKLOG'] if is_re_exam else ['REGULAR']
-    exam_types_sql = ','.join(f"'{t}'" for t in exam_types)
-
-    query = (QUERY_GRADESHEET_CUSTOM_FIELDS
-             .replace('{TERM_IDS}', _term_ids_sql(term_ids))
-             .replace('{UKIDS}', ukids_str)
-             .replace('{EXAM_TYPES}', exam_types_sql))
-
-    cursor = conn.cursor()
-    cursor.execute(query)
-    columns = [desc[0] for desc in cursor.description]
-    rows = cursor.fetchall()
-    cursor.close()
-
-    df = pd.DataFrame(rows, columns=columns)
-    logger.info(f"  Fetched {len(df)} gradesheet custom-field records")
-    return df
-
-
-_MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
-                'august', 'september', 'october', 'november', 'december']
-_MONTH_TO_NUM = {name: i for i, name in enumerate(_MONTH_NAMES, start=1)}
-# Also accept 3-letter abbreviations (jan, feb, ...)
-_MONTH_TO_NUM.update({name[:3]: i for i, name in enumerate(_MONTH_NAMES, start=1)})
-
-
-def _month_to_num(token):
-    """Resolve a month word to its number, tolerating abbreviations and common
-    misspellings (e.g. 'Feb', 'Sept', or 'FERUARY' -> February)."""
-    t = re.sub(r'[^a-z]', '', str(token).lower())
-    if not t:
-        return None
-    if t in _MONTH_TO_NUM:
-        return _MONTH_TO_NUM[t]
-    for name in _MONTH_NAMES:
-        if name.startswith(t) or t.startswith(name):
-            return _MONTH_TO_NUM[name]
-    match = difflib.get_close_matches(t, _MONTH_NAMES, n=1, cutoff=0.6)
-    return _MONTH_TO_NUM[match[0]] if match else None
-
-
-def _parse_loose_date(s):
-    """Parse a textual-month date such as '16 FERUARY 2024' (handles misspelled months)
-    by extracting day / month / year tokens in any order. Returns a datetime or None."""
-    tokens = re.findall(r'[A-Za-z]+|\d+', s)
-    day = month = year = None
-    for tok in tokens:
-        if tok.isdigit():
-            n = int(tok)
-            if len(tok) == 4 and 1900 <= n <= 2100 and year is None:
-                year = n
-            elif 1 <= n <= 31 and day is None:
-                day = n
-            elif year is None and 1900 <= n <= 2100:
-                year = n
-        elif month is None:
-            month = _month_to_num(tok)
-    if day and month and year:
-        try:
-            return datetime(year, month, day)
-        except ValueError:
-            return None
-    return None
-
-
-def _parse_any_date(val):
-    """Best-effort parse of a configured date value into a datetime, or None.
-    Tries standard (day-first) parsing, then a loose textual-month parser."""
-    if val is None or (isinstance(val, float) and pd.isna(val)):
-        return None
-    s = str(val).strip()
-    if not s:
-        return None
-    dt = pd.to_datetime(s, dayfirst=True, errors='coerce')
-    if pd.notna(dt):
-        return dt.to_pydatetime()
-    return _parse_loose_date(s)
-
-
-def _format_date_ddmmyyyy(val):
-    """Format a configured date value as dd/mm/yyyy; keep the raw text if it won't parse."""
-    dt = _parse_any_date(val)
-    if dt is not None:
-        return dt.strftime('%d/%m/%Y')
-    return '' if val is None else str(val).strip()
-
-
-def _split_month_year(val):
-    """Split a configured date value into (month name, year). If it won't parse as a
-    date, return the raw text as the month so nothing is silently dropped."""
-    dt = _parse_any_date(val)
-    if dt is not None:
-        return (dt.strftime('%B'), dt.strftime('%Y'))
-    s = '' if val is None else str(val).strip()
-    return (s, '')
-
-
-def merge_gradesheet_fields(df_user, df_gs):
-    """Derive DOI (from Date of Issue) and MONTH/YEAR (from Date of Result Declaration)
-    and merge them onto the user-details frame by student_ukid."""
-    if df_gs is None or df_gs.empty:
-        df_user['DOI'] = ''
-        df_user['MONTH'] = ''
-        df_user['YEAR'] = ''
-        return df_user
-
-    g = df_gs.copy()
-    g['DOI'] = g['date_of_issue'].apply(_format_date_ddmmyyyy)
-    month_year = g['date_of_declaration'].apply(_split_month_year)
-    g['MONTH'] = [m for m, _ in month_year]
-    g['YEAR'] = [y for _, y in month_year]
-
-    df_user = df_user.merge(g[['student_ukid', 'DOI', 'MONTH', 'YEAR']], on='student_ukid', how='left')
-    for col in ('DOI', 'MONTH', 'YEAR'):
-        df_user[col] = df_user[col].fillna('')
-    return df_user
 
 
 def fetch_user_details(conn, tenant_name, student_ukids):
@@ -1264,6 +1106,19 @@ def main():
         return
     print(f"Loaded {len(template_cols)} columns from template")
 
+    # Gradesheet date fields — only prompt for the ones present in the template; each
+    # entered value is hardcoded for every student in this run.
+    template_set = set(template_cols)
+
+    def _ask_if_in_template(col, label):
+        if col in template_set:
+            return input(f"Enter {label} ({col}): ").strip()
+        return ''
+
+    doi_input = _ask_if_in_template('DOI', 'Date of Issue')
+    month_input = _ask_if_in_template('MONTH', 'Month of Exam')
+    year_input = _ask_if_in_template('YEAR', 'Year of Exam')
+
     # Connect to database
     print("\nConnecting to database...")
     conn = connect_to_tenant_database(tenant_name)
@@ -1285,10 +1140,6 @@ def main():
         df_sgpa = fetch_sgpa_data(conn, term_ids)
         df_user_details = fetch_user_details(conn, tenant_name, student_ukids)
 
-        # Custom Gradesheet fields -> DOI (Date of Issue) and MONTH/YEAR (from Date of Declaration)
-        df_gradesheet = fetch_gradesheet_custom_fields(conn, term_ids, student_ukids, is_re_exam)
-        df_user_details = merge_gradesheet_fields(df_user_details, df_gradesheet)
-
         # Process data
         print("\nProcessing data...")
         df_exam = merge_exam_data_with_schema(df_exam, df_cgpa, df_sgpa)
@@ -1302,6 +1153,11 @@ def main():
 
         # Exam type: 'Regular' for normal exam, 'Backlog' for re-exam
         df_merged['EXAM_TYPE'] = 'Backlog' if is_re_exam else 'Regular'
+
+        # Date of Issue / Month / Year — hardcoded from user input for every student in this run
+        df_merged['DOI'] = doi_input
+        df_merged['MONTH'] = month_input
+        df_merged['YEAR'] = year_input
 
         # Format final report
         df_final = format_final_report(df_merged)
