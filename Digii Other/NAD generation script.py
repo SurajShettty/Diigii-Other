@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from num2words import num2words
 import re
+import difflib
 import logging
 import warnings
 from pathlib import Path
@@ -65,6 +66,8 @@ SELECT
         AS SIGNED
     ) as sem_year_no,
     (CAST(t.acad_year_start AS SIGNED) - CAST(sp.year_of_joining AS SIGNED) + 1) AS year_of_study,
+    t.acad_year_start AS acad_year_start,
+    t.acad_year_end AS acad_year_end,
     pt.name AS programme_type,
     p.system,
     tc.course_name,
@@ -148,6 +151,34 @@ WHERE exam_id IN (
     INNER JOIN term t ON t.id = ee.term_id
     WHERE t.id IN ({TERM_IDS})
 )
+"""
+
+# Custom Gradesheet configured fields: Date of Issue, Date of Result Declaration,
+# Month & Year of Exam. These are free-text values configured per custom gradesheet
+# template (template_type = 'CUSTOM') and bound to a student only once the gradesheet
+# has been generated (row in ems_student_gradesheet). Scoped to the run's exams and
+# to the regular/re-exam gradesheet type via {EXAM_TYPES}.
+QUERY_GRADESHEET_CUSTOM_FIELDS = """
+SELECT
+    sg.student_ukid,
+    MAX(CASE WHEN cf.field_identifier = 'DATE_OF_ISSUE' THEN cf.value END) AS date_of_issue,
+    MAX(CASE WHEN cf.field_identifier = 'DATE_OF_DECLARATION' THEN cf.value END) AS date_of_declaration,
+    MAX(CASE WHEN cf.field_identifier = 'MONTH_AND_YEAR_OF_EXAM' THEN cf.value END) AS month_year_of_exam
+FROM ems_student_gradesheet sg
+INNER JOIN ems_gradesheet_settings gs ON gs.id = sg.gradesheet_setting_id
+INNER JOIN ems_custom_gradesheet_custom_fields cf ON cf.gradesheet_setting_id = gs.id
+WHERE sg.archived = 0
+    AND sg.student_ukid IN ({UKIDS})
+    AND sg.type_of_exam IN ({EXAM_TYPES})
+    AND cf.field_identifier IN ('DATE_OF_ISSUE', 'DATE_OF_DECLARATION', 'MONTH_AND_YEAR_OF_EXAM')
+    AND sg.exam_id IN (
+        SELECT DISTINCT esp.exam_id
+        FROM ems_student_programme_enrollment esp
+        INNER JOIN ems_examination ee ON ee.id = esp.exam_id
+        INNER JOIN term t ON t.id = ee.term_id
+        WHERE t.id IN ({TERM_IDS})
+    )
+GROUP BY sg.student_ukid
 """
 
 # ============================================================================
@@ -243,15 +274,25 @@ WHERE ua.ukid IN ({UKIDS})
 """
 
 # Query 3: Specialisations
+# The student's primary specialisation may be recorded under any of MAJOR /
+# SPECIALISATION / CONCENTRATION / HONOUR depending on how the programme is set up
+# (most use 'SPECIALISATION', not 'MAJOR'), with MINOR as the secondary. We start from
+# the student's actual records (programme_specialisation_student) and exclude soft-deleted
+# mappings/specialisations.
 QUERY_SPECIALISATIONS = """
-SELECT 
+SELECT
     t2.ukid,
     MAX(CASE WHEN t1.specialisation_type = 'MAJOR' THEN t3.name END) AS major,
+    MAX(CASE WHEN t1.specialisation_type = 'SPECIALISATION' THEN t3.name END) AS specialisation,
+    MAX(CASE WHEN t1.specialisation_type = 'CONCENTRATION' THEN t3.name END) AS concentration,
+    MAX(CASE WHEN t1.specialisation_type = 'HONOUR' THEN t3.name END) AS honour,
     MAX(CASE WHEN t1.specialisation_type = 'MINOR' THEN t3.name END) AS minor
-FROM programme_specialisation_mapping t1
-LEFT JOIN programme_specialisation_student t2 ON t2.programme_specialisation_mapping_id = t1.id
-LEFT JOIN specialisation t3 ON t1.specialisation_id = t3.id 
+FROM programme_specialisation_student t2
+INNER JOIN programme_specialisation_mapping t1 ON t1.id = t2.programme_specialisation_mapping_id
+LEFT JOIN specialisation t3 ON t1.specialisation_id = t3.id
 WHERE t2.ukid IN ({UKIDS})
+    AND t1.is_deleted = 0
+    AND (t3.is_deleted = 0 OR t3.is_deleted IS NULL)
 GROUP BY t2.ukid
 """
 
@@ -454,6 +495,135 @@ def fetch_sgpa_data(conn, term_ids):
     return df
 
 
+def fetch_gradesheet_custom_fields(conn, term_ids, student_ukids, is_re_exam=False):
+    """Fetch Custom Gradesheet configured fields (Date of Issue / Date of Declaration /
+    Month & Year of Exam) for the given students, scoped to the run's exams and exam type."""
+    logger.info("Fetching gradesheet custom fields (Date of Issue / Declaration)...")
+
+    empty = pd.DataFrame(columns=['student_ukid', 'date_of_issue', 'date_of_declaration', 'month_year_of_exam'])
+    if not student_ukids or len(student_ukids) == 0:
+        return empty
+
+    ukids_str = ','.join(str(int(u)) for u in student_ukids)
+    # Regular run -> REGULAR gradesheets; re-exam run -> RE_EXAM or BACKLOG gradesheets.
+    exam_types = ['RE_EXAM', 'BACKLOG'] if is_re_exam else ['REGULAR']
+    exam_types_sql = ','.join(f"'{t}'" for t in exam_types)
+
+    query = (QUERY_GRADESHEET_CUSTOM_FIELDS
+             .replace('{TERM_IDS}', _term_ids_sql(term_ids))
+             .replace('{UKIDS}', ukids_str)
+             .replace('{EXAM_TYPES}', exam_types_sql))
+
+    cursor = conn.cursor()
+    cursor.execute(query)
+    columns = [desc[0] for desc in cursor.description]
+    rows = cursor.fetchall()
+    cursor.close()
+
+    df = pd.DataFrame(rows, columns=columns)
+    logger.info(f"  Fetched {len(df)} gradesheet custom-field records")
+    return df
+
+
+_MONTH_NAMES = ['january', 'february', 'march', 'april', 'may', 'june', 'july',
+                'august', 'september', 'october', 'november', 'december']
+_MONTH_TO_NUM = {name: i for i, name in enumerate(_MONTH_NAMES, start=1)}
+# Also accept 3-letter abbreviations (jan, feb, ...)
+_MONTH_TO_NUM.update({name[:3]: i for i, name in enumerate(_MONTH_NAMES, start=1)})
+
+
+def _month_to_num(token):
+    """Resolve a month word to its number, tolerating abbreviations and common
+    misspellings (e.g. 'Feb', 'Sept', or 'FERUARY' -> February)."""
+    t = re.sub(r'[^a-z]', '', str(token).lower())
+    if not t:
+        return None
+    if t in _MONTH_TO_NUM:
+        return _MONTH_TO_NUM[t]
+    for name in _MONTH_NAMES:
+        if name.startswith(t) or t.startswith(name):
+            return _MONTH_TO_NUM[name]
+    match = difflib.get_close_matches(t, _MONTH_NAMES, n=1, cutoff=0.6)
+    return _MONTH_TO_NUM[match[0]] if match else None
+
+
+def _parse_loose_date(s):
+    """Parse a textual-month date such as '16 FERUARY 2024' (handles misspelled months)
+    by extracting day / month / year tokens in any order. Returns a datetime or None."""
+    tokens = re.findall(r'[A-Za-z]+|\d+', s)
+    day = month = year = None
+    for tok in tokens:
+        if tok.isdigit():
+            n = int(tok)
+            if len(tok) == 4 and 1900 <= n <= 2100 and year is None:
+                year = n
+            elif 1 <= n <= 31 and day is None:
+                day = n
+            elif year is None and 1900 <= n <= 2100:
+                year = n
+        elif month is None:
+            month = _month_to_num(tok)
+    if day and month and year:
+        try:
+            return datetime(year, month, day)
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_any_date(val):
+    """Best-effort parse of a configured date value into a datetime, or None.
+    Tries standard (day-first) parsing, then a loose textual-month parser."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    dt = pd.to_datetime(s, dayfirst=True, errors='coerce')
+    if pd.notna(dt):
+        return dt.to_pydatetime()
+    return _parse_loose_date(s)
+
+
+def _format_date_ddmmyyyy(val):
+    """Format a configured date value as dd/mm/yyyy; keep the raw text if it won't parse."""
+    dt = _parse_any_date(val)
+    if dt is not None:
+        return dt.strftime('%d/%m/%Y')
+    return '' if val is None else str(val).strip()
+
+
+def _split_month_year(val):
+    """Split a configured date value into (month name, year). If it won't parse as a
+    date, return the raw text as the month so nothing is silently dropped."""
+    dt = _parse_any_date(val)
+    if dt is not None:
+        return (dt.strftime('%B'), dt.strftime('%Y'))
+    s = '' if val is None else str(val).strip()
+    return (s, '')
+
+
+def merge_gradesheet_fields(df_user, df_gs):
+    """Derive DOI (from Date of Issue) and MONTH/YEAR (from Date of Result Declaration)
+    and merge them onto the user-details frame by student_ukid."""
+    if df_gs is None or df_gs.empty:
+        df_user['DOI'] = ''
+        df_user['MONTH'] = ''
+        df_user['YEAR'] = ''
+        return df_user
+
+    g = df_gs.copy()
+    g['DOI'] = g['date_of_issue'].apply(_format_date_ddmmyyyy)
+    month_year = g['date_of_declaration'].apply(_split_month_year)
+    g['MONTH'] = [m for m, _ in month_year]
+    g['YEAR'] = [y for _, y in month_year]
+
+    df_user = df_user.merge(g[['student_ukid', 'DOI', 'MONTH', 'YEAR']], on='student_ukid', how='left')
+    for col in ('DOI', 'MONTH', 'YEAR'):
+        df_user[col] = df_user[col].fillna('')
+    return df_user
+
+
 def fetch_user_details(conn, tenant_name, student_ukids):
     """Fetch user details using multiple queries and join in Python"""
     logger.info("Fetching user details...")
@@ -537,7 +707,14 @@ def fetch_user_details(conn, tenant_name, student_ukids):
     
     # Merge specialisations
     if not df_spec.empty:
-        df_spec['SPECIALIZATION_MAJOR'] = df_spec['major']
+        # Primary specialisation = first available among MAJOR / SPECIALISATION /
+        # CONCENTRATION / HONOUR (programmes use different type labels for it).
+        df_spec['SPECIALIZATION_MAJOR'] = (
+            df_spec['major']
+            .fillna(df_spec['specialisation'])
+            .fillna(df_spec['concentration'])
+            .fillna(df_spec['honour'])
+        )
         df_spec['SPECIALIZATION_MINOR'] = df_spec['minor']
         df_user = df_user.merge(
             df_spec[['ukid', 'SPECIALIZATION_MAJOR', 'SPECIALIZATION_MINOR']],
@@ -547,7 +724,12 @@ def fetch_user_details(conn, tenant_name, student_ukids):
     else:
         df_user['SPECIALIZATION_MAJOR'] = None
         df_user['SPECIALIZATION_MINOR'] = None
-    
+
+    # Stream maps to specialization: Major -> STREAM, Minor -> STREAM_SECOND.
+    # NOTE: dual-specialization behaviour pending JSPM confirmation (see project notes).
+    df_user['STREAM'] = df_user.get('SPECIALIZATION_MAJOR')
+    df_user['STREAM_SECOND'] = df_user.get('SPECIALIZATION_MINOR')
+
     # Merge blood group and PH
     if not df_blood_ph.empty:
         # Get blood group name from list item
@@ -564,13 +746,8 @@ def fetch_user_details(conn, tenant_name, student_ukids):
         df_user['BLOOD_GROUP'] = None
         df_user['PH'] = None
     
-    # Add SESSION column
-    df_user['SESSION'] = df_user.apply(
-        lambda row: f"{row['ADMISSION_YEAR']}-{row['ADMISSION_YEAR'] + 1}" 
-        if pd.notna(row['ADMISSION_YEAR']) else None,
-        axis=1
-    )
-    
+    # SESSION is the term's academic-year span and is set per term in create_course_records.
+
     # Rename ukid to student_ukid
     df_user.rename(columns={"ukid": "student_ukid"}, inplace=True)
     logger.info(f"  Merged {len(df_user)} user detail records")
@@ -813,6 +990,14 @@ def create_course_records(df_exam):
         row["CGPA"] = group.iloc[-1].get('cgpa') if 'cgpa' in group.columns else None
         row["TERM_TYPE"] = group.iloc[-1].get('system', '')
 
+        # SESSION = the term's academic-year span (e.g. 2024-2025), same for all courses in group.
+        ay_start = group.iloc[-1].get('acad_year_start') if 'acad_year_start' in group.columns else None
+        ay_end = group.iloc[-1].get('acad_year_end') if 'acad_year_end' in group.columns else None
+        if pd.notna(ay_start) and pd.notna(ay_end):
+            row["SESSION"] = f"{int(ay_start)}-{int(ay_end)}"
+        else:
+            row["SESSION"] = ''
+
         # NCrF level — derived from programme type + year of study (same for all courses in group).
         # Stored historically per term, not from the student's current/latest level.
         ncrf_ptype = group.iloc[-1].get('programme_type') if 'programme_type' in group.columns else None
@@ -834,7 +1019,7 @@ def create_course_records(df_exam):
     
     # Create column order
     base_cols = ["student_ukid", "term_name", "sem_year_no"]
-    other_cols = ["SGPA", "CGPA", "TERM_TYPE", "NCRF_LEVEL"]
+    other_cols = ["SGPA", "CGPA", "TERM_TYPE", "NCRF_LEVEL", "SESSION"]
     course_cols = []
     for i in range(1, max_courses + 1):
         course_cols += [
@@ -1100,6 +1285,10 @@ def main():
         df_sgpa = fetch_sgpa_data(conn, term_ids)
         df_user_details = fetch_user_details(conn, tenant_name, student_ukids)
 
+        # Custom Gradesheet fields -> DOI (Date of Issue) and MONTH/YEAR (from Date of Declaration)
+        df_gradesheet = fetch_gradesheet_custom_fields(conn, term_ids, student_ukids, is_re_exam)
+        df_user_details = merge_gradesheet_fields(df_user_details, df_gradesheet)
+
         # Process data
         print("\nProcessing data...")
         df_exam = merge_exam_data_with_schema(df_exam, df_cgpa, df_sgpa)
@@ -1110,6 +1299,9 @@ def main():
 
         # Merge with user details
         df_merged = merge_with_user_details(df_courses, df_user_details)
+
+        # Exam type: 'Regular' for normal exam, 'Backlog' for re-exam
+        df_merged['EXAM_TYPE'] = 'Backlog' if is_re_exam else 'Regular'
 
         # Format final report
         df_final = format_final_report(df_merged)
