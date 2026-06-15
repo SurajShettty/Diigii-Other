@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb8-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "CsQwi1mggE",
-    "database": "collpoll_shobhit",
+    "password": "pTXr8yJmOR",
+    "database": "collpoll_jspm",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
@@ -1116,8 +1116,17 @@ def main():
         return ''
 
     doi_input = _ask_if_in_template('DOI', 'Date of Issue')
-    month_input = _ask_if_in_template('MONTH', 'Month of Exam')
-    year_input = _ask_if_in_template('YEAR', 'Year of Exam')
+
+    # Month & Year of Exam captured in a single prompt, then split into the two columns.
+    month_input = year_input = ''
+    if 'MONTH' in template_set or 'YEAR' in template_set:
+        my_raw = input("Enter Month and Year of Exam (e.g. June 2024): ").strip()
+        year_match = re.search(r'\d{4}', my_raw)
+        if year_match:
+            year_input = year_match.group(0)
+            month_input = my_raw.replace(year_input, '').strip(' /,-').strip()
+        else:
+            month_input = my_raw
 
     # Connect to database
     print("\nConnecting to database...")
