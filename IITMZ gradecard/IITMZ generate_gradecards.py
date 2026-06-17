@@ -263,8 +263,8 @@ def build_student_story(student, logo_path, page2_path=None):
             # Two black lines bracketing the column-header row (full width).
             ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.black),
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.black),
-            ("TOPPADDING", (0, 0), (-1, 0), 4),       # breathing room below top line
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 4),    # smaller gap after header row
+            ("TOPPADDING", (0, 0), (-1, 0), 1),       # tight gap between the two lines
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 1),
         ]))
         story.append(grid)
 
