@@ -73,7 +73,7 @@ _styles = getSampleStyleSheet()
 
 TITLE = ParagraphStyle(
     "title", parent=_styles["Normal"], fontName="Helvetica-Bold",
-    fontSize=15, leading=17, alignment=TA_LEFT, textColor=colors.HexColor("#1f3864"),
+    fontSize=17, leading=19, alignment=TA_LEFT, textColor=colors.HexColor("#1f3864"),
 )
 INFO = ParagraphStyle(
     "info", parent=_styles["Normal"], fontName="Helvetica-Bold",
@@ -136,6 +136,8 @@ def _cell(v):
 def build_column_header():
     """The Course/Title/Cat/Cr/Gr/Att header row, shown once at the top of
     each column (not repeated for every semester)."""
+    # No internal rules here -- the bracketing black lines are drawn across the
+    # full width by the outer grid (see build_student_story).
     tbl = Table([[Paragraph(h, TH) for h in HEADERS]], colWidths=COL_W)
     tbl.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -143,7 +145,6 @@ def build_column_header():
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.6, colors.black),
     ]))
     return tbl
 
@@ -209,7 +210,7 @@ def build_student_story(student, logo_path, page2_path=None):
     if logo_path and os.path.exists(logo_path):
         # Keep the logo's true aspect ratio (no squishing); fit it to ~22mm tall.
         lw, lh = ImageReader(logo_path).getSize()
-        disp_h = 22 * mm
+        disp_h = 17 * mm
         disp_w = disp_h * lw / lh
         if disp_w > 70 * mm:                 # guard unusually wide logos
             disp_w = 70 * mm
@@ -259,6 +260,10 @@ def build_student_story(student, logo_path, page2_path=None):
             ("RIGHTPADDING", (0, 0), (-1, -1), 4),
             ("TOPPADDING", (0, 0), (-1, -1), 0),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 10),  # gap between semester rows
+            # Two black lines bracketing the column-header row (full width).
+            ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.black),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.black),
+            ("TOPPADDING", (0, 0), (-1, 0), 4),       # breathing room below top line
             ("BOTTOMPADDING", (0, 0), (-1, 0), 4),    # smaller gap after header row
         ]))
         story.append(grid)
