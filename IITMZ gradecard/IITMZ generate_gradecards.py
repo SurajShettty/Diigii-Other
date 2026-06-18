@@ -60,11 +60,11 @@ from reportlab.platypus import (
 # ===========================================================================
 # CONFIG -- edit these paths, then just run:  python generate_gradecards.py
 # ===========================================================================
-CSV_PATH = r"C:\Users\suraj\Downloads\ZDA24B039.csv"
+CSV_PATH = r"C:\Users\suraj\Downloads\iitmz transcript 18062026.csv"
 OUT_DIR = r"C:\Users\suraj\OneDrive\Desktop\IITMZ"
 LOGO_PATH = r"C:\Users\suraj\Downloads\iitmz.png"  # set to None if no logo
 # Reference/legend image added as page 2 of every PDF (placed at native size).
-PAGE2_PATH = r"C:\Users\suraj\Downloads\page 2.pdf"  # set to None to skip
+PAGE2_PATH = r"C:\Users\suraj\OneDrive\Desktop\MCA Sem 3 Assignments\IITM Grade Card.pdf"  # set to None to skip
 
 # ---------------------------------------------------------------------------
 # Styles
@@ -189,8 +189,6 @@ def build_semester_block(sem_name, sem_dates, courses, earned, gpa, cgpa):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
         ("LEFTPADDING", (0, 0), (-1, -1), 2),
         ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        # rule above the summary row
-        ("LINEABOVE", (0, last), (-1, last), 0.6, colors.black),
         ("TOPPADDING", (0, last), (-1, last), 5),
     ]))
     return tbl
@@ -416,6 +414,32 @@ def _fmt_date(v):
     return _cell(v) or None
 
 
+_AY_RE = re.compile(r"AY\s*'?(\d{2})\s*-\s*'?(\d{2})", re.I)
+
+
+def _academic_dates(term_name):
+    """Standard academic-calendar date range derived from a term name like
+    'Odd Sem AY 24-25 ...'. Returns e.g. 'October 2024 - February 2025', or
+    None if the academic year / term type can't be determined.
+
+        Odd Sem    AY a-b  ->  October a - February b
+        Even Sem   AY a-b  ->  February b - July b
+        Summer     AY a-b  ->  August b - October b
+    """
+    mt = _AY_RE.search(str(term_name))
+    if not mt:
+        return None
+    y1, y2 = 2000 + int(mt.group(1)), 2000 + int(mt.group(2))
+    t = str(term_name).lower()
+    if "summer" in t:
+        return f"August {y2} - October {y2}"
+    if "odd" in t:
+        return f"October {y1} - February {y2}"
+    if "even" in t:
+        return f"February {y2} - July {y2}"
+    return None
+
+
 def parse_students(df, cols):
     """Group the flat dataframe into nested student -> semester -> course."""
     df = df.fillna("")
@@ -488,10 +512,14 @@ def parse_students(df, cols):
             if not courses and not is_summer and not (gpa_v or cgpa_v):
                 continue
 
-            sd, ed = _fmt_date(g(srow, "starts")), _fmt_date(g(srow, "ends"))
-            dates = f"{sd} - {ed}" if sd and ed else (sd or "")
+            # Prefer the standard academic-calendar range derived from the term
+            # name; fall back to the CSV start/end dates if it can't be derived.
+            dates = _academic_dates(t)
+            if not dates:
+                sd, ed = _fmt_date(g(srow, "starts")), _fmt_date(g(srow, "ends"))
+                dates = f"{sd} - {ed}" if sd and ed else (sd or "")
             if is_summer:
-                label = "Summer"          # summers are not numbered
+                label = "Summer Term"     # summers are not numbered
             else:
                 label = (ORDINALS[reg_count] + " Semester"
                          if reg_count < len(ORDINALS) else f"Semester {reg_count + 1}")
