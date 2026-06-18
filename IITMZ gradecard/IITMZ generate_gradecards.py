@@ -130,7 +130,10 @@ def _fmt(v, decimals=2):
 
 def _cell(v):
     s = "" if v is None else str(v).strip()
-    return s if s.lower() != "nan" else ""
+    # Treat NaN and lone placeholder marks ('.', '-') as empty.
+    if s.lower() == "nan" or s in (".", "-", "--"):
+        return ""
+    return s
 
 
 def build_column_header():
@@ -235,21 +238,37 @@ def build_student_story(student, logo_path, page2_path=None):
     story.append(Paragraph(student["degree"], INFO))
     story.append(Spacer(1, 6))
 
-    # ---- Semester blocks: 2-column grid, row by row ------------------------
-    # Sem 1 & 2 in the first row, 3 & 4 in the next, and so on.
-    blocks = []
-    for sem in student["semesters"]:
-        blocks.append(build_semester_block(
+    # ---- Semester blocks: 2-column grid -----------------------------------
+    # Regular semesters flow column-major (left column first, then right):
+    #   row1 = [Sem1, Sem3], row2 = [Sem2, Sem4], ...
+    # Summer terms are pulled out and placed in their own row(s) at the bottom.
+    def make_block(sem):
+        return build_semester_block(
             sem["sem_name"], sem["sem_dates"], sem["courses"],
             sem["earned"], sem["gpa"], sem["cgpa"],
-        ))
+        )
 
-    if blocks:
+    regular = [s for s in student["semesters"] if not s.get("is_summer")]
+    summers = [s for s in student["semesters"] if s.get("is_summer")]
+    reg_blocks = [make_block(s) for s in regular]
+    sum_blocks = [make_block(s) for s in summers]
+
+    if reg_blocks or sum_blocks:
         # Row 0 = the column header (shown once, at the top of each column).
         data = [[build_column_header(), build_column_header()]]
-        for i in range(0, len(blocks), 2):
-            left = blocks[i]
-            right = blocks[i + 1] if i + 1 < len(blocks) else ""
+
+        # Regular semesters: left column = first half, right column = second half.
+        half = (len(reg_blocks) + 1) // 2
+        left_col, right_col = reg_blocks[:half], reg_blocks[half:]
+        for r in range(half):
+            left = left_col[r]
+            right = right_col[r] if r < len(right_col) else ""
+            data.append([left, right])
+
+        # Summer terms: appended below, two per row.
+        for i in range(0, len(sum_blocks), 2):
+            left = sum_blocks[i]
+            right = sum_blocks[i + 1] if i + 1 < len(sum_blocks) else ""
             data.append([left, right])
 
         col = 90 * mm
@@ -344,7 +363,8 @@ COLUMN_CANDIDATES = {
 
 
 def _norm(s):
-    return " ".join(str(s).strip().lower().split())
+    # Treat underscores and hyphens like spaces so "roll_no" == "roll no".
+    return " ".join(str(s).strip().lower().replace("_", " ").replace("-", " ").split())
 
 
 def resolve_columns(df):
@@ -355,7 +375,7 @@ def resolve_columns(df):
     # Pass 1: exact normalised match (so "Grade" wins before "Grade Points").
     for field, cands in COLUMN_CANDIDATES.items():
         for cand in cands:
-            col = norm_map.get(cand)
+            col = norm_map.get(_norm(cand))
             if col and col not in used:
                 resolved[field], _ = col, used.add(col)
                 break
@@ -365,8 +385,9 @@ def resolve_columns(df):
         if field in resolved:
             continue
         for cand in cands:
+            cand_n = _norm(cand)
             for ncol, col in norm_map.items():
-                if col not in used and cand in ncol:
+                if col not in used and cand_n in ncol:
                     resolved[field], _ = col, used.add(col)
                     break
             if field in resolved:
@@ -418,47 +439,73 @@ def parse_students(df, cols):
     for _, sdf in df.groupby(roll_col, sort=False):
         first = sdf.iloc[0]
 
-        # Distinct terms, ordered by earliest start date -> First/Second/Third...
-        terms = list(dict.fromkeys(sdf[term_col])) if term_col else ["Semester"]
+        # Distinct terms (excluding blank term names), ordered by start date.
+        terms = ([t for t in dict.fromkeys(sdf[term_col]) if _cell(t)]
+                 if term_col else ["Semester"])
         terms = sorted(
             terms,
             key=lambda t: term_start(sdf[sdf[term_col] == t] if term_col else sdf),
         )
 
         semesters, total_earned, total_reg, last_cgpa = [], 0.0, 0.0, ""
-        for idx, t in enumerate(terms):
+        reg_count = 0          # counts only regular (non-summer) semesters
+        for t in terms:
             tdf = sdf[sdf[term_col] == t] if term_col else sdf
             srow = tdf.iloc[0]
+            is_summer = "summer" in str(t).lower()
 
             courses, sem_earned = [], 0.0
             for _, r in tdf.iterrows():
-                cr = _num(g(r, "cr")) or 0
+                code = _cell(g(r, "course_code"))
+                title = _cell(g(r, "title"))
+                cat = _cell(g(r, "cat"))
+                grade = _cell(g(r, "grade"))
+                crc = _cell(g(r, "cr"))
+                # Skip only fully-empty rows. Keep a row that has any course data
+                # (code, title, category, grade or credit) -- e.g. a summer term
+                # that has a grade but no course name/code.
+                if not (code or title or cat or grade or crc):
+                    continue
+                cr = _num(crc) or 0
                 earned = _num(g(r, "earned"))
                 earned = earned if earned is not None else cr
                 sem_earned += earned
                 total_reg += cr
                 total_earned += earned
                 courses.append({
-                    "course_code": g(r, "course_code"),
-                    "title": g(r, "title"),
-                    "cat": g(r, "cat"),
-                    "cr": g(r, "cr"),
-                    "gr": g(r, "grade"),
+                    "course_code": code,
+                    "title": title,
+                    "cat": cat,
+                    "cr": crc,
+                    "gr": grade,
                     "att": g(r, "att"),
                 })
 
+            # Keep a term if it has real courses, is a summer term, or carries
+            # term-level GPA/CGPA (an in-progress term). Drop empty placeholders.
+            gpa_v = _fmt(g(srow, "sgpa"), 2)
+            cgpa_v = _fmt(g(srow, "cgpa"), 2)
+            if not courses and not is_summer and not (gpa_v or cgpa_v):
+                continue
+
             sd, ed = _fmt_date(g(srow, "starts")), _fmt_date(g(srow, "ends"))
             dates = f"{sd} - {ed}" if sd and ed else (sd or "")
-            label = (ORDINALS[idx] + " Semester") if idx < len(ORDINALS) else f"Semester {idx + 1}"
-            last_cgpa = _fmt(g(srow, "cgpa"), 2) or last_cgpa
+            if is_summer:
+                label = "Summer"          # summers are not numbered
+            else:
+                label = (ORDINALS[reg_count] + " Semester"
+                         if reg_count < len(ORDINALS) else f"Semester {reg_count + 1}")
+                reg_count += 1
+            last_cgpa = cgpa_v or last_cgpa
 
             semesters.append({
                 "sem_name": label,
                 "sem_dates": dates,
                 "courses": courses,
                 "earned": str(int(round(sem_earned))),
-                "gpa": _fmt(g(srow, "sgpa"), 2),
-                "cgpa": _fmt(g(srow, "cgpa"), 2),
+                "gpa": gpa_v,
+                "cgpa": cgpa_v,
+                "is_summer": is_summer,
             })
 
         students.append({
