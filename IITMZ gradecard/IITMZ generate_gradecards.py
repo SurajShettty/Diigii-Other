@@ -432,7 +432,7 @@ def _academic_dates(term_name):
     y1, y2 = 2000 + int(mt.group(1)), 2000 + int(mt.group(2))
     t = str(term_name).lower()
     if "summer" in t:
-        return f"August {y2} - October {y2}"
+        return f"{y2}"
     if "odd" in t:
         return f"October {y1} - February {y2}"
     if "even" in t:
@@ -541,8 +541,8 @@ def parse_students(df, cols):
             "name": _cell(g(first, "name")),
             "department": _cell(g(first, "department")),
             "degree": _cell(g(first, "degree")),
-            "total_registered": f"{total_reg:.2f}",
-            "total_earned": f"{total_earned:.2f}",
+            "total_registered": f"{total_reg:.0f}",
+            "total_earned": f"{total_earned:.0f}",
             "cgpa": last_cgpa,
             "semesters": semesters,
         })
