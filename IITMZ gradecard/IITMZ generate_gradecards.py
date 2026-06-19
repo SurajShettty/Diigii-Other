@@ -60,7 +60,7 @@ from reportlab.platypus import (
 # ===========================================================================
 # CONFIG -- edit these paths, then just run:  python generate_gradecards.py
 # ===========================================================================
-CSV_PATH = r"C:\Users\suraj\Downloads\iitmz transcript 18062026.csv"
+CSV_PATH = r"C:\Users\suraj\Downloads\iitmz transcript 18062026 (1).csv"
 OUT_DIR = r"C:\Users\suraj\OneDrive\Desktop\IITMZ"
 LOGO_PATH = r"C:\Users\suraj\Downloads\iitmz.png"  # set to None if no logo
 # Reference/legend image added as page 2 of every PDF (placed at native size).
