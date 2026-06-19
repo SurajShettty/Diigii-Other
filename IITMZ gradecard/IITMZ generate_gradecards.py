@@ -311,7 +311,7 @@ def build_student_story(student, logo_path, page2_path=None):
         "&phi; Transfer credits are not included in Earned Credits and not considered for CGPA "
         "calculation. Transfer credits + Earned Credits should meet the Total Credit requirement.",
         f"Cumulative grade point average secured considering only the successfully completed "
-        f"courses(credits) is {student['cgpa']}",
+        f"courses(credits) is <b>{student['cgpa']}</b>",
         "Min.Rq.Cr. = Credits required for award of degree.  E.Cr. = Earned credit till date "
         "of issue of grade card.",
     ]
