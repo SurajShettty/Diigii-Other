@@ -4,23 +4,51 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 
-FILE1 = r"C:\Users\suraj\OneDrive\Desktop\time table prod.csv"
-FILE2 = r"C:\Users\suraj\OneDrive\Desktop\time table dev.csv"
-OUTPUT_FILE = r"C:\Users\suraj\OneDrive\Desktop\comparison_report.xlsx"
-
-IGNORE_COLUMNS = ["created_timestamp"]
-ROW_MATCH_THRESHOLD = 0.65
+DEFAULT_FILE1 = r""
+DEFAULT_FILE2 = r""
+DEFAULT_OUTPUT_FILE = r"C:\Users\suraj\OneDrive\Desktop\comparison_report.xlsx"
+DEFAULT_IGNORE_COLUMNS = ["created_timestamp"]
+DEFAULT_ROW_MATCH_THRESHOLD = 0.65
 
 # ---------------------------
 # Read Files
 # ---------------------------
+
+def ask_with_default(prompt, default):
+    value = input(f"{prompt} [{default}]: ").strip()
+    return value or default
+
+def ask_list_with_default(prompt, default):
+    default_text = ", ".join(default)
+    value = input(f"{prompt} [{default_text}]: ").strip()
+
+    if not value:
+        return default
+
+    return [
+        item.strip()
+        for item in value.split(",")
+        if item.strip()
+    ]
+
+def ask_float_with_default(prompt, default):
+    while True:
+        value = input(f"{prompt} [{default}]: ").strip()
+
+        if not value:
+            return default
+
+        try:
+            return float(value)
+        except ValueError:
+            print("Please enter a number, for example 0.65.")
 
 def read_file(file):
     if file.lower().endswith(".csv"):
         return pd.read_csv(file, dtype=str)
     return pd.read_excel(file, dtype=str)
 
-def compare_by_similarity(df1, df2, all_cols):
+def compare_by_similarity(df1, df2, all_cols, row_match_threshold):
     old_rows = [
         df1.loc[row, all_cols].astype(str).tolist()
         for row in df1.index
@@ -85,14 +113,14 @@ def compare_by_similarity(df1, df2, all_cols):
             if old_index + 1 < old_end:
                 next_old_similarity = row_similarity(old_index + 1, new_index)
 
-            if current_similarity >= ROW_MATCH_THRESHOLD:
+            if current_similarity >= row_match_threshold:
                 append_modified_or_unchanged_row(old_index, new_index)
                 old_index += 1
                 new_index += 1
-            elif next_new_similarity >= ROW_MATCH_THRESHOLD and next_new_similarity > next_old_similarity:
+            elif next_new_similarity >= row_match_threshold and next_new_similarity > next_old_similarity:
                 append_added_row(new_index)
                 new_index += 1
-            elif next_old_similarity >= ROW_MATCH_THRESHOLD:
+            elif next_old_similarity >= row_match_threshold:
                 append_deleted_row(old_index)
                 old_index += 1
             else:
@@ -128,16 +156,25 @@ def compare_by_similarity(df1, df2, all_cols):
     output_df = pd.DataFrame(output_rows, columns=all_cols)
     return output_df, modified_cells, added_rows, deleted_rows
 
-df1 = read_file(FILE1).fillna("")
-df2 = read_file(FILE2).fillna("")
+file1 = ask_with_default("Old/prod file path", DEFAULT_FILE1)
+file2 = ask_with_default("New/dev file path", DEFAULT_FILE2)
+output_file = ask_with_default("Output Excel file path", DEFAULT_OUTPUT_FILE)
+ignore_columns = ask_list_with_default("Columns to ignore, comma-separated", DEFAULT_IGNORE_COLUMNS)
+row_match_threshold = ask_float_with_default(
+    "Row match threshold from 0 to 1",
+    DEFAULT_ROW_MATCH_THRESHOLD
+)
+
+df1 = read_file(file1).fillna("")
+df2 = read_file(file2).fillna("")
 
 # Clean column names so headers with accidental spaces still match.
 df1.columns = df1.columns.str.strip()
 df2.columns = df2.columns.str.strip()
 
 # Remove ignored columns
-df1 = df1.drop(columns=IGNORE_COLUMNS, errors="ignore")
-df2 = df2.drop(columns=IGNORE_COLUMNS, errors="ignore")
+df1 = df1.drop(columns=ignore_columns, errors="ignore")
+df2 = df2.drop(columns=ignore_columns, errors="ignore")
 
 # Make columns identical while preserving the report column order.
 # Start with df2 because the report is based on df2, then append df1-only columns.
@@ -155,7 +192,8 @@ print("Matching rows by sequence and row similarity.")
 output_df, modified_cells, added_rows, deleted_rows = compare_by_similarity(
     df1,
     df2,
-    all_cols
+    all_cols,
+    row_match_threshold
 )
 
 # ---------------------------
@@ -163,7 +201,7 @@ output_df, modified_cells, added_rows, deleted_rows = compare_by_similarity(
 # ---------------------------
 
 output_df.to_excel(
-    OUTPUT_FILE,
+    output_file,
     sheet_name="Comparison",
     index=False
 )
@@ -172,7 +210,7 @@ output_df.to_excel(
 # Highlighting
 # ---------------------------
 
-wb = load_workbook(OUTPUT_FILE)
+wb = load_workbook(output_file)
 ws = wb["Comparison"]
 
 yellow = PatternFill(
@@ -221,6 +259,6 @@ for row in deleted_rows:
 
 ws.freeze_panes = "A2"
 
-wb.save(OUTPUT_FILE)
+wb.save(output_file)
 
-print(f"Generated: {OUTPUT_FILE}")
+print(f"Generated: {output_file}")
