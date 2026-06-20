@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from sqlalchemy import create_engine, text
 import warnings
@@ -16,8 +17,8 @@ DATABASE = "collpoll_kce"
 # =========================================================
 # OUTPUT
 # =========================================================
-# {course_code} and {term_id} get filled in from your input below.
-OUTPUT_TEMPLATE = r"C:\Users\suraj\OneDrive\Desktop\{course_code}_term{term_id}_pivoted.csv"
+# One Excel file per course code, named {course_code}_{term_id}.xlsx
+OUTPUT_TEMPLATE = r"C:\Users\suraj\OneDrive\Desktop\KCE Assessment\{course_code}_{term_id}.xlsx"
 
 # =========================================================
 # CREATE DB CONNECTION
@@ -32,8 +33,10 @@ print("Database connection established.")
 # =========================================================
 # INPUT
 # =========================================================
-course_code = input("Enter course code (e.g. 23adr405): ").strip()
+course_codes_raw = input("Enter course code(s), comma-separated (e.g. 23adr405,23adr406): ").strip()
 term_id = input("Enter term_id (e.g. 6): ").strip()
+
+course_codes = [c.strip() for c in course_codes_raw.split(",") if c.strip()]
 
 # =========================================================
 # QUERY  (parameterised by course_code + term_id)
@@ -63,16 +66,6 @@ QUERY = text("""
     GROUP BY class_id, student_ukid, ca.id
 """)
 
-df = pd.read_sql(QUERY, engine, params={"term_id": term_id, "course_code": course_code})
-print(f"Fetched {len(df)} rows from DB.")
-
-if df.empty:
-    print("No rows returned — check the course_code / term_id.")
-    raise SystemExit
-
-# =========================================================
-# PIVOT: assessment_name -> columns, marks -> values
-# =========================================================
 index_cols = [
     "student_ukid",
     "registration_id",
@@ -82,22 +75,49 @@ index_cols = [
     "course_component",
     "term",
 ]
-index_cols = [col for col in index_cols if col in df.columns]
 
-df["marks"] = pd.to_numeric(df["marks"], errors="coerce")
 
-pivoted = df.pivot_table(
-    index=index_cols,
-    columns="assessment_name",
-    values="marks",
-    aggfunc="first",   # use "max"/"mean" if a student has duplicate assessment rows
-).reset_index()
-pivoted.columns.name = None
+def build_pivot(course_code):
+    """Fetch + pivot a single course. Returns the pivoted DataFrame (empty if no rows)."""
+    df = pd.read_sql(QUERY, engine, params={"term_id": term_id, "course_code": course_code})
+    print(f"  {course_code}: fetched {len(df)} rows")
+    if df.empty:
+        return df
+
+    cols = [col for col in index_cols if col in df.columns]
+    df["marks"] = pd.to_numeric(df["marks"], errors="coerce")
+
+    pivoted = df.pivot_table(
+        index=cols,
+        columns="assessment_name",
+        values="marks",
+        aggfunc="first",   # use "max"/"mean" if a student has duplicate assessment rows
+    ).reset_index()
+    pivoted.columns.name = None
+    return pivoted
+
+
+def safe_filename(name):
+    """Strip characters Windows forbids in filenames."""
+    for ch in r':\/?*[]<>|"':
+        name = name.replace(ch, "_")
+    return name
 
 # =========================================================
-# WRITE OUTPUT
+# WRITE OUTPUT  (one Excel file per course code)
 # =========================================================
-output_path = OUTPUT_TEMPLATE.format(course_code=course_code, term_id=term_id)
-pivoted.to_csv(output_path, index=False)
-print(f"Wrote {len(pivoted)} rows -> {output_path}")
-print("Assessment columns:", [c for c in pivoted.columns if c not in index_cols])
+os.makedirs(os.path.dirname(OUTPUT_TEMPLATE), exist_ok=True)
+
+for course_code in course_codes:
+    pivoted = build_pivot(course_code)
+    if pivoted.empty:
+        print(f"  {course_code}: no rows — skipped")
+        continue
+
+    output_path = OUTPUT_TEMPLATE.format(
+        course_code=safe_filename(course_code), term_id=safe_filename(term_id)
+    )
+    pivoted.to_excel(output_path, index=False, engine="openpyxl")
+    print(f"  {course_code}: wrote {len(pivoted)} rows -> {output_path}")
+
+print("\nDone.")
