@@ -32,3 +32,6 @@ for index, row in df.iterrows():
         print(f"Cancellation of due id {duesId} was failed with status code {response.status_code}.")
 
     time.sleep(10)
+
+
+    # select party_ukid,ua.registration_id,status,t2.category,t3.due_amount from dues_v2 t1 left join dues_category_v2 t2 on t2.id = t1.due_category_id left join user_attributes ua on ua.ukid = t1.party_ukid left join dues_finance_v2 t3 on t3.dues_id = t1.id where due_category_id = 73 and t1.status != 'CANCELLED';
