@@ -106,7 +106,7 @@ INNER JOIN ems_examination_course_schema ecs
 WHERE
     t.id IN ({TERM_IDS})
     AND esce.enrollment_status != 'NOT_ENROLLED'
-GROUP BY eesc.student_ukid, tc.course_name, t.name
+GROUP BY eesc.student_ukid, tc.course_name, t.name,tc.id
 """
 
 # Query 2: Schema Component Weights (to be processed in Python)
