@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "pTXr8yJmOR",
-    "database": "collpoll_jspm",
+    "password": "3qIGaWCdlh",
+    "database": "collpoll_iilmgg",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
@@ -52,7 +52,7 @@ QUERY_1_EXAM_DATA = """
 SELECT
     t.name as term_name,
     espe.ukid as student_ukid,
-    tc.course_code,
+    coalesce(c.course_code,cv.course_code) course_code,
     CAST(
         (
             (CAST(t.acad_year_start AS SIGNED) - CAST(sp.year_of_joining AS SIGNED)) * 
@@ -69,8 +69,8 @@ SELECT
     t.acad_year_end AS acad_year_end,
     pt.name AS programme_type,
     p.system,
-    tc.course_name,
-    tc.course_credits,
+    coalesce(c.course_name,cv.course_name) course_name,
+    cv.course_credits  course_credits,
     eesc.marks,
     eesc.re_exam_marks as re_exam_ku_marks,
     CASE WHEN (eesc.is_failed) >= 1 THEN 'FAIL' ELSE 'PASS' END is_failed,
@@ -89,6 +89,8 @@ INNER JOIN ems_examination ee
     ON ee.id = espe.exam_id 
 INNER JOIN term_course tc
     ON tc.id = esce.term_course_id
+    left join course_version cv on cv.id = tc.course_version_id
+    left join course c on c.course_id = cv.course_id
 INNER JOIN student_profile sp
     ON sp.ukid = espe.ukid
 INNER JOIN programme p
