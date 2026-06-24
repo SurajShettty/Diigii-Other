@@ -9,7 +9,7 @@ df = pd.read_excel(
 )
 
 headers = {
-    "auth-token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJEaWdpaWNhbXB1cyIsInN1YiI6InVzZXJzLzE1NzMzNzUiLCJ1a2lkIjoxNTczMzc1LCJ1c2VyVHlwZSI6ImFkbWluaXN0cmF0b3IiLCJpbnRlZ3JhdGlvblJvbGVzIjpbXSwiaW50ZWdyYXRpb25GZWF0dXJlRmxhZ3MiOltdLCJodWJOYW1lIjoiaHViLWFwLXNvdXRoLTEtZGIxIiwidGVuYW50TmFtZSI6InZpdGFhIiwiaW5zdGl0dXRlVXJsIjoiaHR0cHM6Ly92aXRhYS5kaWdpaWNhbXB1cy5jb20iLCJjb2xsZWdlSWQiOjU2NywianRpIjoiYjgyMDBkMzAtMTRlMi00MGRiLWIzNmYtNTJkMTBjNWQ0YjY3IiwiaWF0IjoxNzc4MDc4Njc3LCJleHAiOjE3Nzg3MDMyNzd9.pKZLRRdShykZ_4AbvciMOhueZhoubP7tEX6IflKhEkJue4LZNQ4JNNZEktN-y1veLXbf-PJOAdfndaa3CFvCeC8fvWjX7w-SLAPIXxxB38_O3u3LDPW1GDT_GcZszMth4OoMwmAkhfvya8u0sBoCUnvRONwXhn0wz_eBjudTG0kPqcnTt5COuHJFJvC2aMX5JkRQDb9UPgyLzYD3fAc6jZKrY3XA2vGO4XYuqeBOq57hJF9DN2s6jeQbuI3LwyhjfK_x1DzWLUig8eYNGUDoo9VlwyxXdQzxA6Iv4UIFQxR9X7yenFASvUwXgT-ytruYmxk-8-mF1_RDTTanqYOjfg",
+    "auth-token": "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJEaWdpaWNhbXB1cyIsInN1YiI6InVzZXJzLzE4MTc1MjUiLCJ1a2lkIjoxODE3NTI1LCJ1c2VyVHlwZSI6ImNvbGxwb2xsLWFkbWluIiwiaW50ZWdyYXRpb25Sb2xlcyI6W10sImludGVncmF0aW9uRmVhdHVyZUZsYWdzIjpbXSwiaHViTmFtZSI6Imh1Yi1hcC1zb3V0aC0xLWRiMTkiLCJ0ZW5hbnROYW1lIjoiY3Jlc2NlbnQiLCJpbnN0aXR1dGVVcmwiOiJodHRwczovL2NyZXNjZW50LmRpZ2lpY2FtcHVzLmNvbSIsImNvbGxlZ2VJZCI6NTk0LCJqdGkiOiJmOTBmYWU2NC04ZTMyLTQ5ZGQtYmU0OC01Y2U4YWE5OWM0ZWUiLCJpYXQiOjE3ODIyNzg2MzUsImV4cCI6MTc4MjkwMzIzNX0.eSLlnprt6ZYzon0BoV1QnF_0nzU7lxzK9YyGhwB8IBYLR7Kg6lwFGnWmugz2oBls1kun-zfOjkesACy03fPJVGleTgbRCxWAlGEjmUxH6v5vAF3Ran6HUIYV8_K6igba5PUlNMW3HdxK73NzWHXXUAtRBGVJWyOieDo_vOysfAoXkWl7Gya-qOJiGlJyBP4igxXnPqRG-royGtE1D9hskTVx_ASbAuEsFFDMUcUH1nAfyArhWXBzHMqLpvGdgUHDbbjdVD7zabAHWOPCZNTdmfXX09LuhA6MVYRXh32vbyf8_vIIl9PEEHNQxp4od0EiuxTpFMGHN2ykJMelDQKw7g",
     "Content-Type": "application/json"
 }
 
@@ -38,7 +38,7 @@ for _, row in df[["batchYear", "departmentId"]].drop_duplicates().iterrows():
         "intakesToBeDeleted": []
     }
 
-    url = f"https://vitaa.digiicampus.com/api/programme/intake/{row['departmentId']}/{row['batchYear']}/update"
+    url = f"https://crescent.digiicampus.com/api/programme/intake/{row['departmentId']}/{row['batchYear']}/update"
 
     print("Calling:", url)
     print(payload)
@@ -51,6 +51,6 @@ for _, row in df[["batchYear", "departmentId"]].drop_duplicates().iterrows():
 
     print("Status:", response.status_code)
     print("Response:", response.text)
-    time.sleep(3)
+    time.sleep(10)
     # Remove break if you want all combinations processed
     # break

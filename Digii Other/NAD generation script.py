@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb19-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "3qIGaWCdlh",
-    "database": "collpoll_iilmgg",
+    "password": "LW3J0MU3mZ",
+    "database": "collpoll_mujbl",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
