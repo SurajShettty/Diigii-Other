@@ -80,7 +80,8 @@ SELECT
     eesc.re_exam_grade_point as re_exam_ku_grade_point,
     (eesc.grade_point * tc.course_credits) AS credit_points,
     (eesc.re_exam_grade_point * tc.course_credits) AS re_exam_ku_credit_points,
-    ecs.examination_schema_id 
+    tc.id AS term_course_id,
+    ecs.examination_schema_id
 FROM
     ems_student_programme_enrollment espe
 INNER JOIN ems_student_course_enrollment esce 
@@ -120,6 +121,24 @@ FROM ems_examination_schema_composition eescon
 LEFT JOIN ems_examination_schema_component eescot ON eescon.schema_component_id = eescot.id
 LEFT JOIN ems_examination_component_type eect ON eect.id = eescot.component_type_id
 GROUP BY examination_schema_id, eect.name
+"""
+
+# Subjectwise Internal / External marks (per student, per term_course) — the actual
+# component marks scored, summed under the 'Internal' / 'External' component types.
+QUERY_SUBJECTWISE_INT_EXT = """
+SELECT
+    eesm.student_ukid,
+    eesm.term_course_id,
+    eect.name AS label,
+    SUM(eesm.marks) AS marks
+FROM ems_examination_student_marks eesm
+INNER JOIN ems_examination_schema_composition eescon ON eescon.id = eesm.exam_schema_composition_id
+INNER JOIN ems_examination_schema_component eescot ON eescot.id = eescon.schema_component_id
+INNER JOIN ems_examination_component_type eect ON eect.id = eescot.component_type_id
+INNER JOIN term_course tc ON tc.id = eesm.term_course_id
+WHERE tc.term_id IN ({TERM_IDS})
+    AND eect.name IN ('Internal', 'External')
+GROUP BY eesm.student_ukid, eesm.term_course_id, eect.name
 """
 
 QUERY_2_CGPA = """
@@ -468,6 +487,34 @@ def fetch_sgpa_data(conn, term_ids):
     return df
 
 
+def fetch_subjectwise_int_ext(conn, term_ids):
+    """Fetch subjectwise Internal / External marks and pivot to one row per
+    (student_ukid, term_course_id) with 'Internal' and 'External' columns."""
+    logger.info("Fetching subjectwise Internal/External marks...")
+    query = QUERY_SUBJECTWISE_INT_EXT.replace('{TERM_IDS}', _term_ids_sql(term_ids))
+
+    cursor = conn.cursor()
+    cursor.execute(query)
+    columns = [desc[0] for desc in cursor.description]
+    rows = cursor.fetchall()
+    cursor.close()
+
+    df = pd.DataFrame(rows, columns=columns)
+    if df.empty:
+        logger.info("  No Internal/External component marks found")
+        return pd.DataFrame(columns=['student_ukid', 'term_course_id', 'Internal', 'External'])
+
+    pivot = df.pivot_table(
+        index=['student_ukid', 'term_course_id'],
+        columns='label', values='marks', aggfunc='sum'
+    ).reset_index()
+    for col in ('Internal', 'External'):
+        if col not in pivot.columns:
+            pivot[col] = np.nan
+    logger.info(f"  Fetched Internal/External marks for {len(pivot)} (student, course) pairs")
+    return pivot[['student_ukid', 'term_course_id', 'Internal', 'External']]
+
+
 def fetch_user_details(conn, tenant_name, student_ukids):
     """Fetch user details using multiple queries and join in Python"""
     logger.info("Fetching user details...")
@@ -696,11 +743,19 @@ def compute_ncrf_level(programme_type, year_of_study):
     return None
 
 
-def create_course_records(df_exam):
+def create_course_records(df_exam, df_int_ext=None):
     """Create course records in NAD format"""
     logger.info("Creating course records in NAD format...")
-    
+
     df = df_exam.copy()
+
+    # Bring in subjectwise Internal / External marks (per student, per term_course).
+    if df_int_ext is not None and not df_int_ext.empty and 'term_course_id' in df.columns:
+        df = df.merge(df_int_ext, on=['student_ukid', 'term_course_id'], how='left')
+    else:
+        df['Internal'] = np.nan
+        df['External'] = np.nan
+
     df.sort_values(by=["student_ukid", "term_name", "sem_year_no", "course_code"], inplace=True)
     
     records = []
@@ -717,10 +772,21 @@ def create_course_records(df_exam):
         tot_max = tot_min = tot_marks = tot_grade_point = tot_credits = tot_credit_points = 0
         
         for i, (_, course) in enumerate(group.iterrows(), 1):
+            # Internal / External bifurcation. When neither component is recorded for a
+            # subject, fall back to putting the full marks under Internal and 0 External.
+            internal_val = course.get('Internal')
+            external_val = course.get('External')
+            total_marks_val = course.get("marks", 0) if pd.notna(course.get("marks")) else 0
+            if pd.isna(internal_val) and pd.isna(external_val):
+                internal_val = total_marks_val
+                external_val = 0
+
             row[f"SUB{i}NM"] = course["course_name"]
             row[f"SUB{i}"] = course["course_code"]
             row[f"SUB{i}MAX"] = course.get("maximum_marks", 0)
             row[f"SUB{i}MIN"] = course.get("minimum_marks", 0)
+            row[f"SUB{i}_IntMarks"] = internal_val
+            row[f"SUB{i}_ExtMarks"] = external_val
             row[f"SUB{i}_SESSION"] = ''
             row[f"SUB{i}_TH_MAX"] = ''
             row[f"SUB{i}_TH_MIN"] = ''
@@ -867,7 +933,8 @@ def create_course_records(df_exam):
     course_cols = []
     for i in range(1, max_courses + 1):
         course_cols += [
-            f"SUB{i}NM", f"SUB{i}", f"SUB{i}MAX", f"SUB{i}MIN", f"SUB{i}_SESSION", f"SUB{i}_TH_MAX", f"SUB{i}_TH_MIN",
+            f"SUB{i}NM", f"SUB{i}", f"SUB{i}MAX", f"SUB{i}MIN", f"SUB{i}_IntMarks", f"SUB{i}_ExtMarks",
+            f"SUB{i}_SESSION", f"SUB{i}_TH_MAX", f"SUB{i}_TH_MIN",
             f"SUB{i}_PR_MAX", f"SUB{i}_PR_MIN", f"SUB{i}_CE_MAX", f"SUB{i}_CE_MIN", f"SUB{i}_VV_MAX", f"SUB{i}_VV_MIN",
             f"SUB{i}_VV_GRADE", f"SUB{i}_TH_MRKS", f"SUB{i}_TH_CE_MAX", f"SUB{i}_TH_CE_MRKS", f"SUB{i}_TH_GRADE",
             f"SUB{i}_TH_AGGREGATE", f"SUB{i}_PR_AGGREGATE", f"SUB{i}_PR_MRKS", f"SUB{i}_PR_GRADE", f"SUB{i}_PR_CE_MAX",
@@ -1149,6 +1216,7 @@ def main():
 
         df_cgpa = fetch_cgpa_data(conn, term_ids)
         df_sgpa = fetch_sgpa_data(conn, term_ids)
+        df_int_ext = fetch_subjectwise_int_ext(conn, term_ids)
         df_user_details = fetch_user_details(conn, tenant_name, student_ukids)
 
         # Process data
@@ -1156,8 +1224,8 @@ def main():
         df_exam = merge_exam_data_with_schema(df_exam, df_cgpa, df_sgpa)
         df_exam = process_course_data(df_exam)
 
-        # Create course records
-        df_courses = create_course_records(df_exam)
+        # Create course records (with subjectwise Internal/External marks)
+        df_courses = create_course_records(df_exam, df_int_ext)
 
         # Merge with user details
         df_merged = merge_with_user_details(df_courses, df_user_details)

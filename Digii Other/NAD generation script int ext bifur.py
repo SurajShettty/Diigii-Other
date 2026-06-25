@@ -20,11 +20,11 @@ def connect_to_db():
 QUERY_EXAM_DATA = """
 SELECT
     t.name as term_name,
-    eesc.student_ukid,
-    tc.course_code,
+    espe.ukid as student_ukid,
+    coalesce(c.course_code,cv.course_code) course_code,
     CAST(
         (
-            (CAST(t.acad_year_start AS SIGNED) - CAST(sp.year_of_joining AS SIGNED)) *
+            (CAST(t.acad_year_start AS SIGNED) - CAST(sp.year_of_joining AS SIGNED)) * 
             CASE
                 WHEN p.system = 'semester' THEN 2
                 WHEN p.system = 'trimester' THEN 3
@@ -33,61 +33,50 @@ SELECT
         ) + CAST(t.sequence AS SIGNED)
         AS SIGNED
     ) as sem_year_no,
+    (CAST(t.acad_year_start AS SIGNED) - CAST(sp.year_of_joining AS SIGNED) + 1) AS year_of_study,
+    t.acad_year_start AS acad_year_start,
+    t.acad_year_end AS acad_year_end,
+    pt.name AS programme_type,
     p.system,
-    tc.course_name,
-    tc.course_credits,
-    tc.id as term_course_id,
-    COALESCE(max_internal_marks, 0) + COALESCE(max_external_marks, 0) AS maximum_marks,
-    COALESCE(min_external_marks, 0) + COALESCE(min_internal_marks, 0) AS minimum_marks,
+    coalesce(c.course_name,cv.course_name) course_name,
+    cv.course_credits  course_credits,
     eesc.marks,
+    eesc.re_exam_marks as re_exam_ku_marks,
     CASE WHEN (eesc.is_failed) >= 1 THEN 'FAIL' ELSE 'PASS' END is_failed,
     eesc.grade,
+    eesc.re_exam_grade as re_exam_ku_grade,
     eesc.grade_point,
+    eesc.re_exam_grade_point as re_exam_ku_grade_point,
     (eesc.grade_point * tc.course_credits) AS credit_points,
-    cgpa.cgpa,
-    sgpa.sgpa
-FROM ems_student_programme_enrollment esp
-INNER JOIN ems_student_course_enrollment esc ON esc.student_programme_enrollment_id = esp.id
-INNER JOIN ems_examination ee ON ee.id = esp.exam_id
-INNER JOIN term_course tc ON tc.id = esc.term_course_id
-INNER JOIN ems_examination_student_course_grade eesc ON eesc.term_course_id = tc.id AND eesc.student_ukid = esp.ukid
-INNER JOIN term t ON t.id = ee.term_id
-INNER JOIN student_profile sp ON sp.ukid = eesc.student_ukid
-LEFT JOIN programme p ON p.programme_id = sp.programme_id
-INNER JOIN ems_examination_course_schema ecs ON ecs.examination_id = eesc.examination_id AND ecs.course_id = eesc.course_id
-LEFT JOIN (
-    SELECT exam_id, student_ukid, COALESCE(re_exam_cgpa, cgpa) AS cgpa,
-        ROW_NUMBER() OVER (PARTITION BY exam_id, student_ukid ORDER BY id DESC) AS rn
-    FROM ems_examination_student_cgpa
-) cgpa ON cgpa.exam_id = ee.id AND cgpa.student_ukid = eesc.student_ukid AND cgpa.rn = 1
-LEFT JOIN (
-    SELECT exam_id, student_ukid, COALESCE(re_exam_sgpa, sgpa) AS sgpa,
-        ROW_NUMBER() OVER (PARTITION BY exam_id, student_ukid ORDER BY id DESC) AS rn
-    FROM ems_examination_student_sgpa
-) sgpa ON sgpa.exam_id = ee.id AND sgpa.student_ukid = eesc.student_ukid AND sgpa.rn = 1
-INNER JOIN (
-    SELECT
-        examination_schema_id,
-        MAX(CASE WHEN label = 'Internal' THEN max_weightage END) AS max_internal_marks,
-        MAX(CASE WHEN label = 'External' THEN max_weightage END) AS max_external_marks,
-        MIN(CASE WHEN label = 'Internal' THEN min_weightage END) AS min_internal_marks,
-        MIN(CASE WHEN label = 'External' THEN min_weightage END) AS min_external_marks
-    FROM (
-        SELECT
-            examination_schema_id,
-            eect.name AS label,
-            SUM((eescon.weightage * maximum_marks) / 100) AS max_weightage,
-            SUM((eescon.weightage * minimum_marks) / 100) AS min_weightage
-        FROM ems_examination_schema_composition eescon
-        LEFT JOIN ems_examination_schema_component eescot ON eescon.schema_component_id = eescot.id
-        LEFT JOIN ems_examination_component_type eect ON eect.id = eescot.component_type_id
-        GROUP BY examination_schema_id, eect.name
-    ) AS component_weights
-    GROUP BY examination_schema_id
-) ees ON ees.examination_schema_id = ecs.examination_schema_id
-WHERE t.id = {TERM_ID}
-    AND esc.enrollment_status != 'NOT_ENROLLED'
-GROUP BY eesc.student_ukid, tc.course_code, t.name
+    (eesc.re_exam_grade_point * tc.course_credits) AS re_exam_ku_credit_points,
+    tc.id AS term_course_id,
+    ecs.examination_schema_id
+FROM
+    ems_student_programme_enrollment espe
+INNER JOIN ems_student_course_enrollment esce 
+    ON espe.id = esce.student_programme_enrollment_id
+INNER JOIN ems_examination ee
+    ON ee.id = espe.exam_id 
+INNER JOIN term_course tc
+    ON tc.id = esce.term_course_id
+    left join course_version cv on cv.id = tc.course_version_id
+    left join course c on c.course_id = cv.course_id
+INNER JOIN student_profile sp
+    ON sp.ukid = espe.ukid
+INNER JOIN programme p
+    ON p.programme_id = sp.programme_id
+LEFT JOIN programme_types pt
+    ON pt.id = p.programme_type_id
+INNER JOIN term t
+    ON t.id = ee.term_id
+INNER JOIN ems_examination_student_course_grade eesc
+    ON eesc.term_course_id = tc.id AND eesc.student_ukid = espe.ukid
+INNER JOIN ems_examination_course_schema ecs 
+    ON ecs.examination_id = ee.id AND ecs.course_id = tc.course_id
+WHERE
+    t.id IN ({TERM_ID})
+    AND esce.enrollment_status != 'NOT_ENROLLED'
+GROUP BY eesc.student_ukid, tc.course_name, t.name,tc.id
 """
 
 QUERY_SUBJECTWISE_INT_EXT = """
@@ -104,6 +93,48 @@ INNER JOIN term_course tc ON tc.id = eesm.term_course_id
 WHERE tc.term_id = {TERM_ID}
     AND eect.name IN ('Internal', 'External')
 GROUP BY eesm.student_ukid, eesm.term_course_id, eect.name
+"""
+
+QUERY_SCHEMA_WEIGHTS = """
+SELECT
+    examination_schema_id,
+    eect.name AS label,
+    SUM((eescon.weightage * maximum_marks) / 100) AS max_weightage,
+    SUM((eescon.weightage * minimum_marks) / 100) AS min_weightage
+FROM ems_examination_schema_composition eescon
+LEFT JOIN ems_examination_schema_component eescot ON eescon.schema_component_id = eescot.id
+LEFT JOIN ems_examination_component_type eect ON eect.id = eescot.component_type_id
+GROUP BY examination_schema_id, eect.name
+"""
+
+QUERY_CGPA = """
+SELECT
+    student_ukid,
+    COALESCE(re_exam_cgpa, cgpa) AS cgpa,
+    ROW_NUMBER() OVER (PARTITION BY exam_id, student_ukid ORDER BY id DESC) AS rn
+FROM ems_examination_student_cgpa
+WHERE exam_id IN (
+    SELECT DISTINCT esp.exam_id
+    FROM ems_student_programme_enrollment esp
+    INNER JOIN ems_examination ee ON ee.id = esp.exam_id
+    INNER JOIN term t ON t.id = ee.term_id
+    WHERE t.id IN ({TERM_ID})
+)
+"""
+
+QUERY_SGPA = """
+SELECT
+    student_ukid,
+    COALESCE(re_exam_sgpa, sgpa) AS sgpa,
+    ROW_NUMBER() OVER (PARTITION BY exam_id, student_ukid ORDER BY id DESC) AS rn
+FROM ems_examination_student_sgpa
+WHERE exam_id IN (
+    SELECT DISTINCT esp.exam_id
+    FROM ems_student_programme_enrollment esp
+    INNER JOIN ems_examination ee ON ee.id = esp.exam_id
+    INNER JOIN term t ON t.id = ee.term_id
+    WHERE t.id IN ({TERM_ID})
+)
 """
 
 QUERY_USER_DETAILS = """
@@ -209,8 +240,69 @@ def run_query(conn, query):
     return pd.DataFrame(rows, columns=columns)
 
 
+def add_max_min_marks(conn, df_exam):
+    """Compute maximum_marks / minimum_marks per exam schema and merge into df_exam."""
+    df_schema = run_query(conn, QUERY_SCHEMA_WEIGHTS)
+    if df_schema.empty:
+        df_exam['maximum_marks'] = 0
+        df_exam['minimum_marks'] = 0
+        return df_exam
+
+    schema_summed = df_schema.groupby(['examination_schema_id', 'label']).agg(
+        {'max_weightage': 'sum', 'min_weightage': 'sum'}
+    ).reset_index()
+
+    pivot_max = schema_summed.pivot_table(
+        index='examination_schema_id', columns='label',
+        values='max_weightage', aggfunc='max', fill_value=0
+    ).reset_index()
+    pivot_min = schema_summed.pivot_table(
+        index='examination_schema_id', columns='label',
+        values='min_weightage', aggfunc='min', fill_value=0
+    ).reset_index()
+    schema_pivot = pivot_max.merge(pivot_min, on='examination_schema_id', suffixes=('', '_min'))
+
+    def col(df, name):
+        return df[name].fillna(0) if name in df.columns else 0
+
+    schema_pivot['maximum_marks'] = col(schema_pivot, 'Internal') + col(schema_pivot, 'External')
+    schema_pivot['minimum_marks'] = col(schema_pivot, 'Internal_min') + col(schema_pivot, 'External_min')
+
+    df_exam = df_exam.merge(
+        schema_pivot[['examination_schema_id', 'maximum_marks', 'minimum_marks']],
+        on='examination_schema_id', how='left'
+    )
+    df_exam['maximum_marks'] = df_exam['maximum_marks'].fillna(0)
+    df_exam['minimum_marks'] = df_exam['minimum_marks'].fillna(0)
+    return df_exam
+
+
+def add_cgpa_sgpa(conn, df_exam, term_id):
+    """Merge latest CGPA / SGPA per student into df_exam."""
+    df_cgpa = run_query(conn, QUERY_CGPA.format(TERM_ID=term_id))
+    df_sgpa = run_query(conn, QUERY_SGPA.format(TERM_ID=term_id))
+
+    if not df_cgpa.empty:
+        df_cgpa = df_cgpa[df_cgpa['rn'] == 1].groupby('student_ukid').first().reset_index()
+        df_exam = df_exam.merge(df_cgpa[['student_ukid', 'cgpa']], on='student_ukid', how='left')
+    else:
+        df_exam['cgpa'] = None
+
+    if not df_sgpa.empty:
+        df_sgpa = df_sgpa[df_sgpa['rn'] == 1].groupby('student_ukid').first().reset_index()
+        df_exam = df_exam.merge(df_sgpa[['student_ukid', 'sgpa']], on='student_ukid', how='left')
+    else:
+        df_exam['sgpa'] = None
+    return df_exam
+
+
 def fetch_exam_data(conn, term_id):
-    return run_query(conn, QUERY_EXAM_DATA.format(TERM_ID=term_id))
+    df_exam = run_query(conn, QUERY_EXAM_DATA.format(TERM_ID=term_id))
+    if df_exam.empty:
+        return df_exam
+    df_exam = add_max_min_marks(conn, df_exam)
+    df_exam = add_cgpa_sgpa(conn, df_exam, term_id)
+    return df_exam
 
 
 def fetch_subjectwise_int_ext(conn, term_id):
@@ -313,8 +405,8 @@ def create_course_records(df_exam, df_int_ext):
 
             row[f"SUB{i}NM"] = course["course_name"]
             row[f"SUB{i}"] = course["course_code"]
-            row[f"SUB{i}MAX"] = course["maximum_marks"]
-            row[f"SUB{i}MIN"] = course["minimum_marks"]
+            row[f"SUB{i}MAX"] = course.get("maximum_marks", 0)
+            row[f"SUB{i}MIN"] = course.get("minimum_marks", 0)
             row[f"SUB{i}_IntMarks"] = internal_val
             row[f"SUB{i}_ExtMarks"] = external_val
             row[f"SUB{i}_TOT"] = total_marks_val
