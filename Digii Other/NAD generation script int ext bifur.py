@@ -74,7 +74,7 @@ INNER JOIN ems_examination_student_course_grade eesc
 INNER JOIN ems_examination_course_schema ecs 
     ON ecs.examination_id = ee.id AND ecs.course_id = tc.course_id
 WHERE
-    t.id IN ({TERM_ID})
+    t.id IN ({TERM_ID}) and p.programme_id in (38,86,25,21,19,31,32)
     AND esce.enrollment_status != 'NOT_ENROLLED'
 GROUP BY eesc.student_ukid, tc.course_name, t.name,tc.id
 """
