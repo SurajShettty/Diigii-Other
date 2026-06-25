@@ -78,8 +78,8 @@ SELECT
     eesc.re_exam_grade as re_exam_ku_grade,
     eesc.grade_point,
     eesc.re_exam_grade_point as re_exam_ku_grade_point,
-    (eesc.grade_point * tc.course_credits) AS credit_points,
-    (eesc.re_exam_grade_point * tc.course_credits) AS re_exam_ku_credit_points,
+    (eesc.grade_point * cv.course_credits) AS credit_points,
+    (eesc.re_exam_grade_point * cv.course_credits) AS re_exam_ku_credit_points,
     tc.id AS term_course_id,
     ecs.examination_schema_id
 FROM
