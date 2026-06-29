@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 DB_CONFIG = {
-    "host": "collpolldb19-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "LW3J0MU3mZ",
-    "database": "collpoll_mujbl",
+    "password": "pTXr8yJmOR",
+    "database": "collpoll_jspm",
 }
 
 # Alternate tenant DB (uncomment / edit as needed):
@@ -443,10 +443,10 @@ def fetch_exam_data(conn, term_ids, is_re_exam=False):
         else:
             logger.warning("Re-exam mode selected but no re-exam data found in query results")
     
-    # Drop intermediate columns
+    # Drop intermediate columns. Keep the per-subject internal/external max/min
+    # marks so create_course_records can emit them as subjectwise columns.
     df_exam = df_exam.drop(columns=[
-        'examination_schema_id', 'max_internal_marks', 'max_external_marks',
-        'min_internal_marks', 'min_external_marks', 're_exam_ku_marks',
+        'examination_schema_id', 're_exam_ku_marks',
         're_exam_ku_grade', 're_exam_ku_grade_point', 're_exam_ku_credit_points'
     ], errors='ignore')
     
@@ -785,6 +785,12 @@ def create_course_records(df_exam, df_int_ext=None):
             row[f"SUB{i}"] = course["course_code"]
             row[f"SUB{i}MAX"] = course.get("maximum_marks", 0)
             row[f"SUB{i}MIN"] = course.get("minimum_marks", 0)
+            # Internal / External max & min marks (from the examination schema)
+            row[f"SUB{i}_IntMax"] = course.get("max_internal_marks", 0)
+            row[f"SUB{i}_IntMin"] = course.get("min_internal_marks", 0)
+            row[f"SUB{i}_ExtMax"] = course.get("max_external_marks", 0)
+            row[f"SUB{i}_ExtMin"] = course.get("min_external_marks", 0)
+            # Internal / External availed (scored) marks
             row[f"SUB{i}_IntMarks"] = internal_val
             row[f"SUB{i}_ExtMarks"] = external_val
             row[f"SUB{i}_SESSION"] = ''
@@ -933,7 +939,9 @@ def create_course_records(df_exam, df_int_ext=None):
     course_cols = []
     for i in range(1, max_courses + 1):
         course_cols += [
-            f"SUB{i}NM", f"SUB{i}", f"SUB{i}MAX", f"SUB{i}MIN", f"SUB{i}_IntMarks", f"SUB{i}_ExtMarks",
+            f"SUB{i}NM", f"SUB{i}", f"SUB{i}MAX", f"SUB{i}MIN",
+            f"SUB{i}_IntMax", f"SUB{i}_IntMin", f"SUB{i}_ExtMax", f"SUB{i}_ExtMin",
+            f"SUB{i}_IntMarks", f"SUB{i}_ExtMarks",
             f"SUB{i}_SESSION", f"SUB{i}_TH_MAX", f"SUB{i}_TH_MIN",
             f"SUB{i}_PR_MAX", f"SUB{i}_PR_MIN", f"SUB{i}_CE_MAX", f"SUB{i}_CE_MIN", f"SUB{i}_VV_MAX", f"SUB{i}_VV_MIN",
             f"SUB{i}_VV_GRADE", f"SUB{i}_TH_MRKS", f"SUB{i}_TH_CE_MAX", f"SUB{i}_TH_CE_MRKS", f"SUB{i}_TH_GRADE",
