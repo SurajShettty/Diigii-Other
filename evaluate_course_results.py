@@ -23,6 +23,7 @@ COLUMN     = "term_course_id"          # column holding the ids
 AUTH_TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJEaWdpaWNhbXB1cyIsInN1YiI6InVzZXJzLzE2ODIxMjQiLCJ1a2lkIjoxNjgyMTI0LCJ1c2VyVHlwZSI6ImZhY3VsdHkiLCJpbnRlZ3JhdGlvblJvbGVzIjpbXSwiaW50ZWdyYXRpb25GZWF0dXJlRmxhZ3MiOlsiRElHSUlfQUlfQ0hBVEJPVCJdLCJodWJOYW1lIjoiaHViLWFwLXNvdXRoLTEtZGI5IiwidGVuYW50TmFtZSI6ImlpbG1ndXJ1Z3JhbSIsImluc3RpdHV0ZVVybCI6Imh0dHBzOi8vaWlsbWd1cnVncmFtLmRpZ2lpY2FtcHVzLmNvbSIsImNvbGxlZ2VJZCI6NTczLCJqdGkiOiJhMjVjN2Q1NC04MGE0LTRlMzEtYjU5Ni02NmJmMWVlNmFjMGYiLCJpYXQiOjE3ODIyMTUyMTksImV4cCI6MTc4MjgzOTgxOX0.CRbnN9l3javuIzvZpE8pyq3gtNprvZCFNaJlIiaPcPWKI7W99xGc2JClFY3QMPWv5h4U-2AEZ2mv1q0G-Itdj-c33ABmOhTm9gQwZlQTozqkXxd9d2zsANGY7FPFjx5ANNSBe8ZOJxaU9W8VMclryGFNkHqtdmANco4OsaSJr4gzyXzLQ8AZN-heSACUY0XoQnWxix_DDtzsp-LuxkUXwDc5ESOFt9EmOwZ01nLgeh29xdkggoBgz7-YIpD__Tn1YZF9HuspfClX3s_TqogRLtAAHsx8foptiJRZFDyI0vgCIENUZNlDFYgJxxa6IHLqrXLiSumCxcIn4fsmuIIYEw"
 OUTPUT_FILE = r"C:\Users\suraj\OneDrive\Desktop\result_log.xlsx"
 BASE_URL = "https://iilmgurugram.digiicampus.com/api/ems/courseResult/result/{}"
+# BASE_URL = "https://iilmgurugram.digiicampus.com/rest/bulkDataProcess/abort/{}?reason=1"
 # ----------------------------------------
 
 
