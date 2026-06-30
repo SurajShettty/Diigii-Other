@@ -13,20 +13,25 @@ Output: result_log.xlsx
 """
 
 import os
+import time
 import requests
 import pandas as pd
 
 # ---------------- CONFIG ----------------
-INPUT_FILE = "C:\\Users\\suraj\\OneDrive\\Desktop\\Book1IILMG Course Auto Evaluation List.xlsx"   # CSV or Excel with the termCourseIds
+INPUT_FILE = r"C:\Users\suraj\OneDrive\Desktop\run.xlsx"   # CSV or Excel with the termCourseIds
 COLUMN     = "term_course_id"          # column holding the ids
-AUTH_TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJEaWdpaWNhbXB1cyIsInN1YiI6InVzZXJzLzM1ODg0IiwidWtpZCI6MzU4ODQsInVzZXJUeXBlIjoiY29sbHBvbGwtYWRtaW4iLCJpbnRlZ3JhdGlvblJvbGVzIjpbIkRDQiJdLCJpbnRlZ3JhdGlvbkZlYXR1cmVGbGFncyI6WyJESUdJSV9BSV9DSEFUQk9UIl0sImh1Yk5hbWUiOiJodWItYXAtc291dGgtMS1jb21tb24taHViIiwidGVuYW50TmFtZSI6ImRlbW8iLCJpbnN0aXR1dGVVcmwiOiJodHRwczovL2RlbW8uZGlnaWljYW1wdXMuY29tIiwiY29sbGVnZUlkIjozOSwianRpIjoiYjJmNDc0NzktOTZjZS00MTFkLWJjZTctYmMwZGFmMTQxZTY5IiwiaWF0IjoxNzgyNzQ0NDc0LCJleHAiOjE3ODMzNjkwNzR9.HBnBxUpV-xlDpxRKlnYp1RvXP44lW9ngO9tZGOKeNfvEQ2fqRMbfQMzsDuvigyv7Vx591mKZQwiF9Y4O2D2KeJm-Rqg6uvZ9rkZJjeVeUZG_oKR7yZ67ORfZ6Py4VW9uSI_iidYZ7oyAvNPtql_4w4aNGID-eydXHwkDjZ1-KqnXL2vVmBHWUI1S-BZX8iNfcOJzvRu8Ct2jjU9ehVW1l_8FhFup5EabcdTKscEYdsv8nE0Q0JTm5ErGo226q23C99veWtbo1Q8UjMiE4rEGjY5jfNO6eB0u43wRlNwfiqq4O02h4TIAE7qOEw2l8vdkv8K20WgXgaktEetXmqtq-w"
-OUTPUT_FILE = "C:\\Users\\suraj\\OneDrive\\Desktop\\result_log.xlsx"
-BASE_URL = "https://demo.digiicampus.com/api/ems/courseResult/result/{}"
+AUTH_TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJEaWdpaWNhbXB1cyIsInN1YiI6InVzZXJzLzE2ODIxMjQiLCJ1a2lkIjoxNjgyMTI0LCJ1c2VyVHlwZSI6ImZhY3VsdHkiLCJpbnRlZ3JhdGlvblJvbGVzIjpbXSwiaW50ZWdyYXRpb25GZWF0dXJlRmxhZ3MiOlsiRElHSUlfQUlfQ0hBVEJPVCJdLCJodWJOYW1lIjoiaHViLWFwLXNvdXRoLTEtZGI5IiwidGVuYW50TmFtZSI6ImlpbG1ndXJ1Z3JhbSIsImluc3RpdHV0ZVVybCI6Imh0dHBzOi8vaWlsbWd1cnVncmFtLmRpZ2lpY2FtcHVzLmNvbSIsImNvbGxlZ2VJZCI6NTczLCJqdGkiOiJhMjVjN2Q1NC04MGE0LTRlMzEtYjU5Ni02NmJmMWVlNmFjMGYiLCJpYXQiOjE3ODIyMTUyMTksImV4cCI6MTc4MjgzOTgxOX0.CRbnN9l3javuIzvZpE8pyq3gtNprvZCFNaJlIiaPcPWKI7W99xGc2JClFY3QMPWv5h4U-2AEZ2mv1q0G-Itdj-c33ABmOhTm9gQwZlQTozqkXxd9d2zsANGY7FPFjx5ANNSBe8ZOJxaU9W8VMclryGFNkHqtdmANco4OsaSJr4gzyXzLQ8AZN-heSACUY0XoQnWxix_DDtzsp-LuxkUXwDc5ESOFt9EmOwZ01nLgeh29xdkggoBgz7-YIpD__Tn1YZF9HuspfClX3s_TqogRLtAAHsx8foptiJRZFDyI0vgCIENUZNlDFYgJxxa6IHLqrXLiSumCxcIn4fsmuIIYEw"
+OUTPUT_FILE = r"C:\Users\suraj\OneDrive\Desktop\result_log.xlsx"
+BASE_URL = "https://iilmgurugram.digiicampus.com/api/ems/courseResult/result/{}"
 # ----------------------------------------
 
 
 def read_ids(path, column):
-    if path.lower().endswith((".xlsx", ".xls")):
+    # Detect the real format by content, not the file extension:
+    # a real .xlsx is a zip and starts with "PK"; anything else we treat as CSV.
+    with open(path, "rb") as f:
+        is_real_xlsx = f.read(2) == b"PK"
+    if is_real_xlsx:
         df = pd.read_excel(path, dtype=str)
     else:
         df = pd.read_csv(path, dtype=str)
@@ -60,6 +65,8 @@ def main():
                 "result": "ERROR",
                 "response": str(exc),
             })
+
+        time.sleep(3)
 
     pd.DataFrame(log).to_excel(OUTPUT_FILE, index=False)
     print(f"\nDone. Log written to {os.path.abspath(OUTPUT_FILE)}")
