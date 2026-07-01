@@ -15,6 +15,11 @@ import warnings
 from pathlib import Path
 import os
 import shutil
+import sys
+
+# Make the repo-root helper importable (this script lives one level down).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from db_env import get_db_config
 
 
 def number_to_alphabet(n):
@@ -72,37 +77,14 @@ def compare_regular_backlog(rows):
 
 
 # ============================================================================
-# DATABASE CONFIG  (creds live here in the script — edit / add tenants as needed)
+# DATABASE — the tenant schema is prompted at runtime (see __main__); creds are
+# resolved from db_credentials.json via db_env.get_db_config().
 # ============================================================================
-# Keyed by the sub-domain of the instance URL (the text before ".digiicampus.com").
-# When the entered instance is not listed here, DEFAULT_DB is used.
-TENANT_DB = {
-    'mangalayatanjbl': {
-        'host': 'collpolldb19-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com',
-        'database': 'collpoll_mujbl',
-        'user': 'suraj_shetty',
-        'password': 'LW3J0MU3mZ',
-    },
-    # 'cu': {
-    #     'host': 'collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com',
-    #     'database': 'collpoll_cu',
-    #     'user': 'suraj_shetty',
-    #     'password': '3qIGaWCdlh',
-    # },
-    # 'isbr': {
-    #     'host': 'digiidb3-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com',
-    #     'database': 'collpoll_isbr',
-    #     'user': 'suraj_shetty',
-    #     'password': 'AdaQwNaEPo',
-    # },
-}
-DEFAULT_DB = TENANT_DB['university']
 
 
-def get_db_connection(instance_url):
-    """Resolve DB creds from the instance sub-domain and open a MySQL connection."""
-    tenant_key = instance_url.split('.')[0].lower()
-    cfg = TENANT_DB.get(tenant_key, DEFAULT_DB)
+def get_db_connection(schema):
+    """Resolve creds for a tenant schema from db_credentials.json and open a MySQL connection."""
+    cfg = get_db_config(schema)
     print(f'Connecting to DB: {cfg["database"]} @ {cfg["host"]}')
     return mysql.connector.connect(
         host=cfg['host'], user=cfg['user'],
@@ -351,6 +333,13 @@ if __name__ == '__main__':
         warnings.simplefilter("ignore")
         instance = str(input('Enter complete instance url:\n')) + '.digiicampus.com'
 
+        schema = input('Enter tenant schema (e.g. collpoll_mujbl or mujbl):\n').strip()
+        # Fail fast if the tenant has no credentials configured.
+        try:
+            get_db_config(schema)
+        except KeyError as e:
+            raise SystemExit(f'Error: {e}')
+
         output_folder_name = instance.split('.')[0].upper() + ' TR Reports'
         instance_name = get_instance_name(instance)
         print(instance_name)
@@ -358,7 +347,7 @@ if __name__ == '__main__':
         term_input = input('Enter Term ID(s) for TR Generation (comma-separated):')
         term_ids = [int(x.strip()) for x in term_input.split(',') if x.strip()]
 
-        conn = get_db_connection(instance)
+        conn = get_db_connection(schema)
         try:
             exam_data = fetch_exam_data(conn, term_ids)
             if exam_data.empty:
@@ -486,7 +475,7 @@ if __name__ == '__main__':
         final_data = final_data.apply(compare_regular_backlog, axis=1)
 
         # check if directories exist or create
-        downloads_path = str(Path.home() / "Downloads")
+        downloads_path = "C:\\Users\\suraj\\OneDrive\\Desktop\\TR Report Outputs"
         if not os.path.exists(downloads_path + "\\" + output_folder_name):
             os.makedirs(downloads_path + "\\" + output_folder_name)
 
@@ -650,8 +639,11 @@ if __name__ == '__main__':
                 # Define Excel Writer
                 fileName = row['programme_name'] + '-' + str(row['year_of_joining'])
                 term_name_safe = row["term_name_regular"].replace(':', ' ')  # Replace colons with spaces
-                writer = pd.ExcelWriter(
-                    str(Path.home() / f'Downloads/{output_folder_name}/{term_name_safe}/{fileName}.xlsx'))
+                # Save under the same base path the folders were created in (line ~478),
+                # and make sure the term folder exists before writing.
+                out_dir = os.path.join(downloads_path, output_folder_name, term_name_safe)
+                os.makedirs(out_dir, exist_ok=True)
+                writer = pd.ExcelWriter(os.path.join(out_dir, f'{fileName}.xlsx'))
 
                 # Main Table to Excel
                 final.index = final.index + 1
