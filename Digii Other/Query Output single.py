@@ -6,10 +6,10 @@ from mysql.connector import Error
 
 def fetch_data(query):
     mydb = mysql.connector.connect(
-        host="collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+        host="collpolldb11-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
         user="suraj_shetty",
-        passwd="3qIGaWCdlh",
-        database="collpoll_iilmgg"
+        passwd="pTXr8yJmOR",
+        database="collpoll_gdgu"
     )
 
     mycursor = mydb.cursor(dictionary=True)
@@ -18,33 +18,57 @@ def fetch_data(query):
     return pd.DataFrame(raw_data)
     
 query = f'''
-Select t1.id assessment_id, t1.start_datetime, t1.closing_datetime, t1.duration, t1.proctored,
-c.course_code, cv.course_name, cv.course_credits, t7.registration_id, concat(t7.f_name, ' ', t7.l_name) student_name, t5.programme_name, 
-concat("R",t6.row_number, "C", t6.column_number) seat_number, t9.name venue_name
-from ems_assessment t1 
-left join term_course t2 on t2.id = t1.term_course_id
-left join course_version cv on cv.id = t2.course_version_id
-left join course c on c.course_id = cv.course_id
-left join ems_assessment_student t3 on t3.assessment_id = t1.id
-left join ems_assessment_venue_seating t6 on t3.venue_seating_id = t6.id
-left join ems_assessment_venue_infrastructure t8 on t8.id = t6.assessment_venue_infrastructure_id
-left join infrastructure_version t9 on t9.id = t8.infrastructure_id
-left join user_attributes t7 on t7.ukid = t3.ukid
-left join student_profile t4 on t4.ukid = t3.ukid
-left join programme t5 on t5.programme_id = t4.programme_id
-where date(start_datetime) = curdate() +1
-group by t1.id, t2.id, t3.id
-order by start_datetime asc;
-'''
+            SELECT 
+                ccs.name AS ccs_name, 
+                p.programme_name, 
+                dd.department_name as programme_dept, 
+                c.batch_year, 
+                cc.sequence, 
+                crt.name AS enrolment_type, 
+                if(
+                    cc.is_term_dependent = 1, 'Term Specific', 
+                    'Term Independent'
+                ) curriculum_type, 
+                s.name specialisation, 
+                psm.specialisation_type, 
+                ccc.course_code, cv.id as course_version_id,cv.version,
+                cv.course_name, 
+                cct.name as component_type, 
+                cco.course_credits as component_credits, 
+                d.department_name as course_offered_by_dept, 
+                ccc.course_credits, 
+                ccs.min_courses, 
+                ccs.max_courses, 
+                ccs.min_credits, 
+                ccs.max_credits 
+            FROM curriculum c 
+            LEFT JOIN curriculum_cluster cc ON cc.curriculum_id = c.id 
+            LEFT JOIN curriculum_cluster_set ccs ON ccs.curriculum_cluster_id = cc.id 
+            LEFT JOIN course_registration_type crt ON crt.id = ccs.course_registration_type_id 
+            LEFT JOIN programme p ON p.programme_id = c.programme_id 
+            LEFT JOIN department dd on dd.department_id = p.department_id 
+            LEFT JOIN curriculum_course ccc ON ccc.curriculum_cluster_set_id = ccs.id 
+            LEFT JOIN course_version cv on cv.id = ccc.course_version_id 
+            LEFT JOIN course cccc on cv.course_id = cccc.course_id 
+            LEFT JOIN department d on d.department_id = cccc.department_id 
+            LEFT JOIN programme_specialisation_mapping psm on psm.id = c.programme_specialisation_mapping_id 
+            LEFT JOIN specialisation s on psm.specialisation_id = s.id 
+            LEFT JOIN course_component cco on cco.course_version_id = cv.id 
+                left join course_component_type cct on cct.id = cco.course_component_type_id
+            WHERE 
+                 sequence IS NOT NULL 
+                AND ccc.course_code IS NOT NULL 
+                AND ccs.is_deleted = 0 
+                '''
 
 
 # fetching data from query to df
 df = fetch_data(query)
-df['duration'] = (
-    df['duration']
-    .astype(str)
-    .str.extract(r'(\d{2}:\d{2}:\d{2})', expand=False)
-)
+# df['duration'] = (
+#     df['duration']
+#     .astype(str)
+#     .str.extract(r'(\d{2}:\d{2}:\d{2})', expand=False)
+# )
 
 
 # Create an empty list to store error messages
