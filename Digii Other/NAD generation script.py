@@ -4,9 +4,14 @@ from num2words import num2words
 import re
 import logging
 import warnings
+import sys
 from pathlib import Path
 from datetime import datetime
 import pymysql
+
+# Make the repo-root helper importable (this script lives one level down).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from db_env import get_db_config
 
 warnings.filterwarnings('ignore')
 
@@ -15,32 +20,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # ============================================================================
-# DATABASE CREDENTIALS (embedded — no external helper / .env dependency)
+# DATABASE — the tenant schema is prompted at runtime (see main()); creds are
+# resolved from db_credentials.json via db_env.get_db_config().
 # ============================================================================
-
-DB_CONFIG = {
-    "host": "collpolldb19-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
-    "user": "suraj_shetty",
-    "password": "LW3J0MU3mZ",
-    "database": "collpoll_sgbs",
-}
-
-# Alternate tenant DB (uncomment / edit as needed):
-# DB_CONFIG = {
-#     "host": "digiidb3-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
-#     "user": "suraj_shetty",
-#     "password": "AdaQwNaEPo",
-#     "database": "collpoll_cu",
-# }
 
 
 def connect_to_tenant_database(tenant_name):
-    """Connect to the tenant database using the embedded credentials above."""
+    """Connect to the given tenant schema using creds from db_credentials.json."""
+    cfg = get_db_config(tenant_name)
     return pymysql.connect(
-        host=DB_CONFIG["host"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        database=DB_CONFIG["database"],
+        host=cfg["host"],
+        user=cfg["user"],
+        password=cfg["password"],
+        database=cfg["database"],
     )
 
 # ============================================================================
@@ -1132,9 +1124,15 @@ def main():
     print("="*60)
     
     # Get inputs
-    tenant_name = input("\nEnter tenant name: ").strip()
+    tenant_name = input("\nEnter tenant schema (e.g. collpoll_sgbs or sgbs): ").strip()
     if not tenant_name:
         print("Error: Tenant name cannot be empty!")
+        return
+    # Fail fast if the tenant has no credentials configured.
+    try:
+        get_db_config(tenant_name)
+    except KeyError as e:
+        print(f"Error: {e}")
         return
     
     term_id_input = input("Enter term ID(s) (comma-separated for multiple): ").strip()
