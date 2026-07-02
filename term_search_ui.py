@@ -30,7 +30,8 @@ PAGE = r"""
     header { background: #1f2937; color: #fff; padding: 16px 24px; }
     header h1 { margin: 0; font-size: 18px; font-weight: 600; }
     .bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 16px 24px; background: #fff; border-bottom: 1px solid #e2e5e9; }
-    input, button { font-size: 14px; padding: 8px 12px; border: 1px solid #cfd4da; border-radius: 6px; }
+    input, button, select { font-size: 14px; padding: 8px 12px; border: 1px solid #cfd4da; border-radius: 6px; }
+    select { background: #fff; cursor: pointer; }
     input { min-width: 220px; }
     button { background: #2563eb; color: #fff; border-color: #2563eb; cursor: pointer; }
     button:hover { background: #1d4ed8; }
@@ -46,13 +47,17 @@ PAGE = r"""
   </style>
 </head>
 <body>
-  <header><h1>Term Search &mdash; select * from term</h1></header>
+  <header><h1>Term / Programme Search &mdash; select * from &lt;table&gt;</h1></header>
   <div class="bar">
     <input id="schema" list="schemas" placeholder="Schema e.g. collpoll_sgbs or sgbs" autofocus>
     <datalist id="schemas">
       {% for s in schemas %}<option value="{{ s }}">{% endfor %}
     </datalist>
-    <button id="load">Load terms</button>
+    <select id="table">
+      <option value="term">term</option>
+      <option value="programme">programme</option>
+    </select>
+    <button id="load">Load</button>
     <input id="filter" placeholder="Filter loaded rows by keyword…" disabled>
     <span id="count"></span>
   </div>
@@ -65,18 +70,19 @@ const $ = id => document.getElementById(id);
 
 async function load() {
   const schema = $('schema').value.trim();
+  const table = $('table').value;
   if (!schema) { setStatus('Please enter a schema name.', true); return; }
-  setStatus('Loading ' + schema + ' …');
+  setStatus('Loading ' + table + ' from ' + schema + ' …');
   $('load').disabled = true;
   try {
-    const r = await fetch('/terms?schema=' + encodeURIComponent(schema));
+    const r = await fetch('/terms?schema=' + encodeURIComponent(schema) + '&table=' + encodeURIComponent(table));
     const data = await r.json();
     if (!r.ok) { setStatus(data.error || 'Request failed.', true); clear(); return; }
     COLS = data.columns; ROWS = data.rows;
     $('filter').disabled = false; $('filter').value = '';
     sortCol = null;
     render();
-    setStatus('Loaded ' + ROWS.length + ' term(s) from ' + data.schema + '.');
+    setStatus('Loaded ' + ROWS.length + ' ' + data.table + ' row(s) from ' + data.schema + '.');
   } catch (e) {
     setStatus('Error: ' + e, true); clear();
   } finally {
@@ -151,11 +157,17 @@ def index():
     return render_template_string(PAGE, schemas=list_schemas())
 
 
+ALLOWED_TABLES = {"term", "programme"}
+
+
 @app.route("/terms")
 def terms():
     schema = request.args.get("schema", "").strip()
     if not schema:
         return jsonify(error="No schema provided."), 400
+    table = request.args.get("table", "term").strip()
+    if table not in ALLOWED_TABLES:
+        return jsonify(error=f"Unsupported table: {table}"), 400
     try:
         cfg = get_db_config(schema)
     except KeyError as e:
@@ -171,7 +183,7 @@ def terms():
             connection_timeout=15,
         )
         cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT * FROM term")
+        cur.execute(f"SELECT * FROM {table}")
         rows = cur.fetchall()
         columns = [d[0] for d in cur.description]
         cur.close()
@@ -180,7 +192,7 @@ def terms():
             for k, v in row.items():
                 if v is not None and not isinstance(v, (str, int, float, bool)):
                     row[k] = str(v)
-        return jsonify(schema=cfg["database"], columns=columns, rows=rows)
+        return jsonify(schema=cfg["database"], table=table, columns=columns, rows=rows)
     except mysql.connector.Error as e:
         return jsonify(error=f"DB error: {e}"), 500
     finally:

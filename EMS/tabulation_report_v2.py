@@ -150,6 +150,9 @@ JOIN ems_student_course_enrollment esce
 JOIN term_course tc ON tc.id = eesc.term_course_id
 LEFT JOIN course_version cv ON cv.id = tc.course_version_id
 LEFT JOIN course c ON c.course_id = cv.course_id
+-- programme scoping: programme_id lives on the student's profile, so join it in
+-- to allow filtering the report to specific programme(s) (see {PROG} in fetch_exam_data).
+LEFT JOIN student_profile sp_prog ON sp_prog.ukid = eesc.student_ukid
 WHERE {WHERE}
 """
 
@@ -220,17 +223,27 @@ def fetch_cgpa_sgpa(conn, term_ids):
     return df[['student_ukid', 'cgpa', 'sgpa']]
 
 
-def fetch_exam_data(conn, term_ids):
+def fetch_exam_data(conn, term_ids, programme_ids=None):
     """Fetch exam records for the requested home term(s).
 
     Returns REGULAR rows for courses whose home term is one of term_ids, PLUS
     every BACKLOG attempt by those students (any term the re-exam was conducted
     in). The downstream merge on (ukid, course_code) keeps only backlogs that
     belong to a requested-term course and tags them via their own term_name.
+
+    programme_ids: optional list of programme ids to scope the report to. When
+    None/empty the report is generated for all programmes present in the term(s).
     """
     ids = ','.join(str(int(t)) for t in term_ids)
+    # Scope the REGULAR pull to the requested programme(s), if any. The BACKLOG
+    # pull is already bounded by the resulting student list, so it needs no
+    # separate programme filter.
+    prog_clause = ''
+    if programme_ids:
+        prog_ids = ','.join(str(int(p)) for p in programme_ids)
+        prog_clause = f" AND sp_prog.programme_id IN ({prog_ids})"
     reg = _run_df(conn, EXAM_GRADE_QUERY.replace(
-        '{WHERE}', f"tc.term_id IN ({ids}) AND esce.type = 'REGULAR'"))
+        '{WHERE}', f"tc.term_id IN ({ids}) AND esce.type = 'REGULAR'{prog_clause}"))
     if reg.empty:
         return reg
 
@@ -347,9 +360,13 @@ if __name__ == '__main__':
         term_input = input('Enter Term ID(s) for TR Generation (comma-separated):')
         term_ids = [int(x.strip()) for x in term_input.split(',') if x.strip()]
 
+        # Optional: scope to specific programme(s). Leave blank to fetch all.
+        programme_input = input('Enter Programme ID(s) to filter (comma-separated, blank = all):')
+        programme_ids = [int(x.strip()) for x in programme_input.split(',') if x.strip()]
+
         conn = get_db_connection(schema)
         try:
-            exam_data = fetch_exam_data(conn, term_ids)
+            exam_data = fetch_exam_data(conn, term_ids, programme_ids)
             if exam_data.empty:
                 raise SystemExit('No exam data found for the given term id(s).')
             user_data = fetch_user_data(
