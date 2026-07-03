@@ -64,12 +64,24 @@ def load_data(path: Path) -> pd.DataFrame:
     if path.suffix.lower() in (".xlsx", ".xls"):
         df = pd.read_excel(path, dtype=str)
     else:
-        df = pd.read_csv(path, dtype=str)
+        # try common encodings; Windows exports are usually cp1252, not utf-8
+        for enc in ("utf-8-sig", "cp1252", "latin-1"):
+            try:
+                df = pd.read_csv(path, dtype=str, encoding=enc)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            df = pd.read_csv(path, dtype=str, encoding="latin-1")
     df.columns = [c.strip() for c in df.columns]
     # normalise whitespace on the text keys we group / display on
     for c in (COL_REG, COL_NAME, COL_PROG, COL_BATCH, COL_CNAME, COL_CCODE, COL_GRADE):
         if c in df.columns:
             df[c] = df[c].astype(str).str.strip()
+    # dtype=str turns empty cells into the literal "nan"/"none" -> blank them
+    df = df.replace(
+        to_replace=r"(?i)^\s*(nan|none|nat|null)\s*$", value="", regex=True
+    )
     return df
 
 
