@@ -1444,13 +1444,14 @@ class MasterdataValidatorUI:
             self.output_var.set(path)
 
     def _set_default_output(self):
+        desktop = os.path.join(str(Path.home()), "Desktop")
         input_path = self.file_var.get().strip()
         if input_path:
-            base, _ = os.path.splitext(input_path)
-            folder = base + "_upload_ready"
+            base = os.path.splitext(os.path.basename(input_path))[0]
+            folder = os.path.join(desktop, base + "_upload_ready")
             self.output_var.set(folder)
         else:
-            self.output_var.set(os.path.join(str(Path.home()), "masterdata_upload_ready"))
+            self.output_var.set(os.path.join(desktop, "masterdata_upload_ready"))
 
     def _refresh_schemas(self):
         self.schema_combo["values"] = list_schemas()
