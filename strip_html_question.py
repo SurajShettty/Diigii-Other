@@ -2,8 +2,8 @@ import html
 import re
 import pandas as pd
 
-SRC = r"C:\Users\suraj\OneDrive\Desktop\JAIN EMS question report 14-06-2026.csv"
-OUT = r"C:\Users\suraj\OneDrive\Desktop\JAIN EMS question report 14-06-2026_clean.xlsx"
+SRC = r"C:\Users\suraj\OneDrive\Desktop\JAIN Exam raw 06-07-2026.csv"
+OUT = r"C:\Users\suraj\OneDrive\Desktop\JAIN Exam raw 06-07-2026_clean.xlsx"
 COLS = ["question", "response_display", "selected_options"]
 
 TAG_RE = re.compile(r"<[^>]+>")
