@@ -149,6 +149,14 @@ def _format_intake(raw_intake: str, programme: str, batch_year: Optional[int]) -
     return f"{programme}-{batch_year}-intake"
 
 
+def _ensure_two_word_name(name: str) -> str:
+    """Append ' .' to single-word names so upload systems accept them."""
+    name = normalise_whitespace(name)
+    if name and len(name.split()) == 1:
+        return f"{name} ."
+    return name
+
+
 def find_column(df: pd.DataFrame, prefixes: List[str]) -> Optional[str]:
     """Find the first column whose header starts with one of the prefixes (case-insensitive)."""
     prefixes = [p.strip().lower() for p in prefixes]
@@ -1082,7 +1090,7 @@ def generate_student_file(
 
         record = {
             "Registration Id": normalise_whitespace(row.get(find_column(ok_df, ["registration id"]), "")),
-            "Name": normalise_whitespace(row.get(find_column(ok_df, ["name"]), "")),
+            "Name": _ensure_two_word_name(row.get(find_column(ok_df, ["name"]), "")),
             "Layer": layer,
             "Department": dept_name,
             "Programme": programme,
@@ -1152,7 +1160,7 @@ def generate_staff_file(
         record = {
             "User Type*": row.get("__user_type__", ""),
             "Employee ID*": normalise_whitespace(row.get(find_column(combined, ["employee id"]), "")),
-            "Name*": normalise_whitespace(row.get(find_column(combined, ["name"]), "")),
+            "Name*": _ensure_two_word_name(row.get(find_column(combined, ["name"]), "")),
             "Gender*": gender or "",
             "Email*": normalise_whitespace(row.get(find_column(combined, ["email"]), "")),
             "Phone Number*": clean_phone(row.get(find_column(combined, ["phone number"]), "")) or "",
@@ -1251,14 +1259,15 @@ def validate_workbook(
     instance_type: str,
     schema: Optional[str],
     tabs: List[str],
+    generate_upload_files: bool = True,
     progress_callback=None,
 ) -> List[Tuple[str, int, int]]:
     """Core validation entry point.
 
-    Validates the selected tabs and writes three outputs into `output_folder`:
-      - masterdata_validated.xlsx  (original workbook + Remarks column)
-      - student_creation.xlsx      (OK student rows in upload format)
-      - staff_creation.xlsx        (OK faculty + admin rows in upload format)
+    Validates the selected tabs and writes outputs into `output_folder`:
+      - masterdata_validated.xlsx  (always created; original workbook + Remarks)
+      - student_creation.xlsx      (if generate_upload_files is True)
+      - staff_creation.xlsx        (if generate_upload_files is True)
 
     `instance_type` is either "fresh" (cross-tab validation, no DB) or
     "existing" (validate against the tenant database; schema required).
@@ -1413,19 +1422,20 @@ def validate_workbook(
         layer_map = db.department_layer_map()
 
         # Generate upload-format files from OK rows (files are created even if empty)
-        generated: List[str] = []
+        if generate_upload_files:
+            generated: List[str] = []
 
-        if "student" in assessed_sheets:
-            student_path = os.path.join(output_folder, "student_creation.xlsx")
-            count = generate_student_file(assessed_sheets, student_path, layer_map)
-            _log(f"Generated student_creation.xlsx ({count} OK rows)")
-            generated.append(student_path)
+            if "student" in assessed_sheets:
+                student_path = os.path.join(output_folder, "student_creation.xlsx")
+                count = generate_student_file(assessed_sheets, student_path, layer_map)
+                _log(f"Generated student_creation.xlsx ({count} OK rows)")
+                generated.append(student_path)
 
-        if "faculty" in assessed_sheets or "admin" in assessed_sheets:
-            staff_path = os.path.join(output_folder, "staff_creation.xlsx")
-            count = generate_staff_file(assessed_sheets, staff_path, layer_map)
-            _log(f"Generated staff_creation.xlsx ({count} OK rows)")
-            generated.append(staff_path)
+            if "faculty" in assessed_sheets or "admin" in assessed_sheets:
+                staff_path = os.path.join(output_folder, "staff_creation.xlsx")
+                count = generate_staff_file(assessed_sheets, staff_path, layer_map)
+                _log(f"Generated staff_creation.xlsx ({count} OK rows)")
+                generated.append(staff_path)
 
         _log("Summary:")
         for logical, total, bad in summary:
@@ -1551,6 +1561,16 @@ class MasterdataValidatorUI:
         ttk.Button(btn_frame, text="Select All", command=self._select_all).pack(side="left", padx=(0, 8))
         ttk.Button(btn_frame, text="Clear All", command=self._clear_all).pack(side="left")
 
+        # ---- Upload format generation ----------------------------------------
+        gen_frame = ttk.Frame(self.root)
+        gen_frame.pack(fill="x", padx=12, pady=(4, 0))
+        self.generate_upload_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            gen_frame,
+            text="Generate upload format files (student_creation.xlsx & staff_creation.xlsx)",
+            variable=self.generate_upload_var,
+        ).pack(anchor="w")
+
         # ---- Output folder ---------------------------------------------------
         out_frame = ttk.LabelFrame(self.root, text="Output Folder")
         out_frame.pack(fill="x", **pad)
@@ -1650,6 +1670,7 @@ class MasterdataValidatorUI:
         instance_type = self.instance_var.get().strip()
         schema = self.schema_var.get().strip()
         output_folder = self.output_var.get().strip()
+        generate_upload_files = self.generate_upload_var.get()
 
         if not input_path:
             messagebox.showerror("Missing file", "Please select or drop the masterdata Excel file.")
@@ -1681,6 +1702,7 @@ class MasterdataValidatorUI:
                     instance_type,
                     schema if instance_type == "existing" else None,
                     tabs,
+                    generate_upload_files,
                     progress_callback=lambda msg: self.root.after(0, self._log, msg),
                 )
                 self.root.after(0, self._on_success, output_folder, summary)
