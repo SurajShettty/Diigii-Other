@@ -185,20 +185,12 @@ def resolve_input_path():
     return raw.strip('"').strip("'")
 
 
-def main():
-    in_path  = resolve_input_path()
-    out_path = sys.argv[2] if len(sys.argv) >= 3 else OUTPUT_PATH
+def process_workbook(in_path, out_path):
+    """Reformat & validate the workbook at `in_path`, saving to `out_path`.
 
-    if not in_path or not os.path.exists(in_path):
-        print(f"ERROR: input file not found: {in_path}")
-        return
-
-    # no explicit output -> same name as input with a "_cleaned" suffix,
-    # saved next to the input file.
-    if not out_path:
-        base, ext = os.path.splitext(in_path)
-        out_path = base + "_cleaned" + (ext or ".xlsx")
-
+    Returns (total_rows, bad_rows). Raises ValueError if the expected columns
+    cannot be found in row 1 (message lists the missing headers).
+    """
     wb = openpyxl.load_workbook(in_path)
     ws = wb.active
 
@@ -212,9 +204,9 @@ def main():
         (COL_CLASS_ID, ci_class), (COL_START_DATE, ci_sdate),
         (COL_START_TIME, ci_stime), (COL_END_TIME, ci_etime)] if idx is None]
     if missing:
-        print("ERROR: could not find these columns in row 1:", ", ".join(missing))
-        print("Found headers:", headers)
-        sys.exit(1)
+        raise ValueError(
+            "Could not find these columns in row 1: " + ", ".join(missing)
+            + f"\nFound headers: {headers}")
 
     # add the Error column at the far right
     err_col = ws.max_column + 1
@@ -275,6 +267,29 @@ def main():
             ws.cell(row=r, column=err_col, value="; ".join(messages))
 
     wb.save(out_path)
+    return total_rows, bad_rows
+
+
+def main():
+    in_path  = resolve_input_path()
+    out_path = sys.argv[2] if len(sys.argv) >= 3 else OUTPUT_PATH
+
+    if not in_path or not os.path.exists(in_path):
+        print(f"ERROR: input file not found: {in_path}")
+        return
+
+    # no explicit output -> same name as input with a "_cleaned" suffix,
+    # saved next to the input file.
+    if not out_path:
+        base, ext = os.path.splitext(in_path)
+        out_path = base + "_cleaned" + (ext or ".xlsx")
+
+    try:
+        total_rows, bad_rows = process_workbook(in_path, out_path)
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
+
     print(f"Processed {total_rows} data row(s).")
     print(f"  Rows with errors : {bad_rows}")
     print(f"  Clean rows       : {total_rows - bad_rows}")
