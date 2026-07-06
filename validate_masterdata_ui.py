@@ -45,27 +45,27 @@ from db_env import get_db_config, list_schemas
 
 SHEET_MAP = {
     "department": {
-        "sheet": "2.Department Data",
+        "sheet": "Department Data",
         "header_row": 0,
     },
     "programme": {
-        "sheet": "3.ProgrammeDegree Data",
+        "sheet": "Programme Degree Data",
         "header_row": 1,  # row 1 in Excel is a title; headers are on row 2
     },
     "course": {
-        "sheet": "4.Course Data",
+        "sheet": "Course Data",
         "header_row": 0,
     },
     "faculty": {
-        "sheet": "5.Faculty Data",
+        "sheet": "Faculty Data",
         "header_row": 0,
     },
     "admin": {
-        "sheet": "6.Adminstrative Staff Data",
+        "sheet": "Administrative Staff Data",
         "header_row": 0,
     },
     "student": {
-        "sheet": "7.Student Data",
+        "sheet": "Students Data",
         "header_row": 0,
     },
 }
@@ -137,6 +137,18 @@ def to_int(value: Any) -> Optional[int]:
     return None
 
 
+def _intake_key(value: str) -> str:
+    """Normalise an intake string for lenient comparison (ignore case/separators)."""
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def _format_intake(raw_intake: str, programme: str, batch_year: Optional[int]) -> str:
+    """Return the standard intake format; case of raw value is ignored."""
+    if not programme or batch_year is None:
+        return raw_intake
+    return f"{programme}-{batch_year}-intake"
+
+
 def find_column(df: pd.DataFrame, prefixes: List[str]) -> Optional[str]:
     """Find the first column whose header starts with one of the prefixes (case-insensitive)."""
     prefixes = [p.strip().lower() for p in prefixes]
@@ -193,7 +205,17 @@ class DbCache:
 
     def column_names(self, table: str) -> List[str]:
         rows = self.fetch(table)
-        return list(rows[0].keys()) if rows else []
+        if rows:
+            return list(rows[0].keys())
+        # Table is empty; get column names from the cursor description.
+        cur = self.conn.cursor()
+        try:
+            cur.execute(f"SELECT * FROM {table} LIMIT 0")
+            cols = [d[0] for d in cur.description] if cur.description else []
+            cur.fetchall()  # consume any residual result set
+        finally:
+            cur.close()
+        return cols
 
     def find_col(self, table: str, candidates: List[str]) -> Optional[str]:
         """Return the first available column name matching one of the candidates."""
@@ -253,6 +275,16 @@ class DbCache:
                     phones.add(digits)
         return phones
 
+    def user_attribute_registration_ids(self) -> Set[str]:
+        """Return existing registration ids from user_attributes table."""
+        col = self.find_col(
+            "user_attributes",
+            ["registration_id", "registration_no", "roll_number", "student_id", "enrollment_no", "enrollment_id"],
+        )
+        if not col:
+            return set()
+        return self.value_set("user_attributes", col, lower=True)
+
     def quota_names(self) -> Set[str]:
         col = self.find_col("quota", ["name", "quota_name"])
         if not col:
@@ -308,6 +340,14 @@ class DbCache:
 
         return mapped
 
+    def intake_name_keys(self) -> Set[str]:
+        """Return normalised intake-name keys for lenient matching."""
+        return {_intake_key(name) for name in self.intake_names()}
+
+    def mapped_intake_keys(self) -> Set[str]:
+        """Return normalised mapped-intake keys for lenient matching."""
+        return {_intake_key(name) for name in self.intakes_mapped_to_terms()}
+
     def department_layer_map(self) -> Dict[str, str]:
         """Return {lowercase_department_name: layer_name} using the user's query logic."""
         mapping: Dict[str, str] = {}
@@ -355,6 +395,84 @@ class DbCache:
         return mapping
 
 
+class FreshContext:
+    """Validation context for fresh instances (no DB data yet).
+
+    Provides the same lookup interface as DbCache but sources department and
+    programme references from the masterdata tabs instead of the database.
+    """
+
+    def __init__(self, assessed_sheets: Dict[str, pd.DataFrame]):
+        self._assessed = assessed_sheets
+        self._dept_names = self._build_dept_names()
+        self._prog_names = self._build_prog_names()
+        self._prog_duration_map = self._build_prog_duration_map()
+
+    def _build_dept_names(self) -> Set[str]:
+        df = self._assessed.get("department")
+        if df is None:
+            return set()
+        col = find_column(df, ["name"])
+        if not col:
+            return set()
+        return {normalise_whitespace(v).lower() for v in df[col] if not is_blank(v)}
+
+    def _build_prog_names(self) -> Set[str]:
+        df = self._assessed.get("programme")
+        if df is None:
+            return set()
+        col = find_column(df, ["programme name"])
+        if not col:
+            return set()
+        return {normalise_whitespace(v).lower() for v in df[col] if not is_blank(v)}
+
+    def _build_prog_duration_map(self) -> Dict[str, int]:
+        df = self._assessed.get("programme")
+        duration_map: Dict[str, int] = {}
+        if df is None:
+            return duration_map
+        name_col = find_column(df, ["programme name"])
+        dur_col = find_column(df, ["duration"])
+        if not name_col or not dur_col:
+            return duration_map
+        for _, row in df.iterrows():
+            name = normalise_whitespace(row.get(name_col, ""))
+            dur = to_int(row.get(dur_col, ""))
+            if name and dur is not None:
+                duration_map[name.lower()] = dur
+        return duration_map
+
+    def department_names(self) -> Set[str]:
+        return self._dept_names
+
+    def programme_names(self) -> Set[str]:
+        return self._prog_names
+
+    def programme_duration(self, programme_name: str) -> Optional[int]:
+        return self._prog_duration_map.get(programme_name.lower())
+
+    def quota_names(self) -> Set[str]:
+        return set()
+
+    def intake_name_keys(self) -> Set[str]:
+        return set()
+
+    def mapped_intake_keys(self) -> Set[str]:
+        return set()
+
+    def authenticator_emails(self) -> Set[str]:
+        return set()
+
+    def authenticator_phones(self) -> Set[str]:
+        return set()
+
+    def user_attribute_registration_ids(self) -> Set[str]:
+        return set()
+
+    def department_layer_map(self) -> Dict[str, str]:
+        return {}
+
+
 # ---------------------------------------------------------------------------
 # Validators
 # ---------------------------------------------------------------------------
@@ -369,7 +487,7 @@ def _is_blank_row(row: pd.Series) -> bool:
     return all(is_blank(row[c]) for c in cols)
 
 
-def validate_department(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
+def validate_department(df: pd.DataFrame, db: DbCache, fresh_instance: bool = False) -> pd.DataFrame:
     dept_names = db.department_names()
     remarks = []
 
@@ -384,25 +502,25 @@ def validate_department(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
         msgs = []
 
         if not name_col:
-            msgs.append("Could not locate 'Name' column")
+            msgs.append("Mandatory field 'Name' is missing in masterdata")
         else:
             name = normalise_whitespace(row[name_col])
             if not name:
                 msgs.append("Name is mandatory")
-            elif name.lower() in dept_names:
+            elif not fresh_instance and name.lower() in dept_names:
                 msgs.append("Department already exists in system")
 
         if code_col:
             if is_blank(row[code_col]):
                 msgs.append("Code is mandatory")
         else:
-            msgs.append("Could not locate 'Code' column")
+            msgs.append("Mandatory field 'Code' is missing in masterdata")
 
         if type_col:
             if is_blank(row[type_col]):
                 msgs.append("Type is mandatory")
         else:
-            msgs.append("Could not locate 'Type' column")
+            msgs.append("Mandatory field 'Type' is missing in masterdata")
 
         remarks.append("; ".join(msgs) if msgs else OK_TEXT)
 
@@ -410,7 +528,7 @@ def validate_department(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
     return df
 
 
-def validate_programme(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
+def validate_programme(df: pd.DataFrame, db: DbCache, fresh_instance: bool = False) -> pd.DataFrame:
     dept_names = db.department_names()
     prog_names = db.programme_names()
     remarks = []
@@ -431,7 +549,7 @@ def validate_programme(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
         name = normalise_whitespace(row.get(prog_col, "")) if prog_col else ""
         if not name:
             msgs.append("Programme Name is mandatory")
-        elif name.lower() in prog_names:
+        elif not fresh_instance and name.lower() in prog_names:
             msgs.append("Programme already exists in system")
 
         dept = normalise_whitespace(row.get(dept_col, "")) if dept_col else ""
@@ -446,13 +564,13 @@ def validate_programme(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
             elif to_int(row[start_year_col]) is None:
                 msgs.append("Programme Start Year must be a number")
         else:
-            msgs.append("Could not locate 'Programme Start Year' column")
+            msgs.append("Mandatory field 'Programme Start Year' is missing in masterdata")
 
         if code_col:
             if is_blank(row[code_col]):
                 msgs.append("Code is mandatory")
         else:
-            msgs.append("Could not locate 'Code' column")
+            msgs.append("Mandatory field 'Code' is missing in masterdata")
 
         duration = None
         if duration_col:
@@ -463,21 +581,11 @@ def validate_programme(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
                 if duration is None:
                     msgs.append("Duration must be a number")
         else:
-            msgs.append("Could not locate 'Duration' column")
+            msgs.append("Mandatory field 'Duration' is missing in masterdata")
 
         system = normalise_whitespace(row.get(system_col, "")) if system_col else ""
         if not system:
             msgs.append("System is mandatory")
-        else:
-            system_l = system.lower()
-            if system_l in {"semester"}:
-                systemcount = duration * 2 if duration else None
-            elif system_l in {"year", "annual"}:
-                systemcount = duration
-            else:
-                systemcount = None
-            if systemcount is not None:
-                msgs.append(f"System count will be {systemcount} ({system})")
 
         remarks.append("; ".join(msgs) if msgs else OK_TEXT)
 
@@ -485,10 +593,16 @@ def validate_programme(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
     return df
 
 
-def validate_course(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
+def validate_course(df: pd.DataFrame, db: DbCache, fresh_instance: bool = False) -> pd.DataFrame:
     dept_names = db.department_names()
-    course_names = db.value_set("course", db.find_col("course", ["name", "course_name"]) or "", lower=True)
-    course_codes = db.value_set("course", db.find_col("course", ["code", "course_code"]) or "", lower=True)
+    course_names = (
+        set() if fresh_instance
+        else db.value_set("course", db.find_col("course", ["name", "course_name"]) or "", lower=True)
+    )
+    course_codes = (
+        set() if fresh_instance
+        else db.value_set("course", db.find_col("course", ["code", "course_code"]) or "", lower=True)
+    )
     remarks = []
 
     name_col = find_column(df, ["course name"])
@@ -510,14 +624,14 @@ def validate_course(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
         name = normalise_whitespace(row.get(name_col, "")) if name_col else ""
         if not name:
             msgs.append("Course Name is mandatory")
-        elif name.lower() in course_names:
+        elif not fresh_instance and name.lower() in course_names:
             msgs.append("Course already exists in system")
 
         code = normalise_whitespace(row.get(code_col, "")) if code_col else ""
         if not code:
             msgs.append("Course Code is mandatory")
         else:
-            if code.lower() in course_codes:
+            if not fresh_instance and code.lower() in course_codes:
                 msgs.append("Course Code already exists in system")
             if code.lower() in uploaded_codes and len(uploaded_codes[code.lower()]) > 1:
                 msgs.append("Duplicate Course Code within uploaded records")
@@ -531,7 +645,7 @@ def validate_course(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
                 except ValueError:
                     msgs.append("Total Credits must be numeric")
         else:
-            msgs.append("Could not locate 'Total Credits' column")
+            msgs.append("Mandatory field 'Total Credits' is missing in masterdata")
 
         dept = normalise_whitespace(row.get(dept_col, "")) if dept_col else ""
         if not dept:
@@ -553,10 +667,12 @@ def _validate_staff(
     uploaded_emails: Dict[str, List[int]],
     uploaded_phones: Dict[str, List[int]],
     sheet_label: str,
+    fresh_instance: bool = False,
 ) -> pd.DataFrame:
     dept_names = db.department_names()
-    auth_emails = db.authenticator_emails()
-    auth_phones = db.authenticator_phones()
+    auth_emails = set() if fresh_instance else db.authenticator_emails()
+    auth_phones = set() if fresh_instance else db.authenticator_phones()
+    existing_reg_ids = db.user_attribute_registration_ids()
     remarks = []
 
     emp_col = find_column(df, ["employee id"])
@@ -579,7 +695,6 @@ def _validate_staff(
             remarks.append("")
             continue
         msgs = []
-        infos = []
 
         if emp_col:
             eid = normalise_whitespace(row[emp_col])
@@ -588,20 +703,20 @@ def _validate_staff(
             elif eid.lower() in emp_ids and len(emp_ids[eid.lower()]) > 1:
                 msgs.append("Duplicate Employee Id within uploaded records")
         else:
-            msgs.append("Could not locate 'Employee Id' column")
+            msgs.append("Mandatory field 'Employee Id' is missing in masterdata")
 
         if name_col:
             if is_blank(row[name_col]):
                 msgs.append("Name is mandatory")
         else:
-            msgs.append("Could not locate 'Name' column")
+            msgs.append("Mandatory field 'Name' is missing in masterdata")
 
         if gender_col:
             gender = normalise_gender(row[gender_col])
             if not gender:
                 msgs.append("Gender must be Male, Female, or Other")
         else:
-            msgs.append("Could not locate 'Gender' column")
+            msgs.append("Mandatory field 'Gender' is missing in masterdata")
 
         email = ""
         if email_col:
@@ -619,7 +734,7 @@ def _validate_staff(
                 elif email_l in uploaded_emails and len(uploaded_emails[email_l]) > 1:
                     msgs.append("Duplicate Email within uploaded records")
         else:
-            msgs.append("Could not locate 'Email' column")
+            msgs.append("Mandatory field 'Email' is missing in masterdata")
 
         phone = None
         if phone_col:
@@ -637,7 +752,7 @@ def _validate_staff(
                 elif phone in uploaded_phones and len(uploaded_phones[phone]) > 1:
                     msgs.append("Duplicate Phone Number within uploaded records")
         else:
-            msgs.append("Could not locate 'Phone Number' column")
+            msgs.append("Mandatory field 'Phone Number' is missing in masterdata")
 
         dept = normalise_whitespace(row.get(dept_col, "")) if dept_col else ""
         if not dept:
@@ -645,17 +760,18 @@ def _validate_staff(
         elif dept.lower() not in dept_names:
             msgs.append("Department does not exist in system")
 
-        infos.append("Accommodation Type will default to RESIDENT")
-        infos.append("MFA will default to disabled")
-
-        all_msgs = msgs + [f"NOTE: {i}" for i in infos]
-        remarks.append("; ".join(all_msgs) if all_msgs else OK_TEXT)
+        remarks.append("; ".join(msgs) if msgs else OK_TEXT)
 
     df[REMARKS_COL] = remarks
     return df
 
 
-def validate_faculty_and_admin(fac_df: pd.DataFrame, admin_df: pd.DataFrame, db: DbCache) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def validate_faculty_and_admin(
+    fac_df: pd.DataFrame,
+    admin_df: pd.DataFrame,
+    db: DbCache,
+    fresh_instance: bool = False,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     # Cross-sheet duplicates
     uploaded_emails: Dict[str, List[int]] = {}
     uploaded_phones: Dict[str, List[int]] = {}
@@ -683,19 +799,20 @@ def validate_faculty_and_admin(fac_df: pd.DataFrame, admin_df: pd.DataFrame, db:
     existing_emails: Set[str] = set()
     existing_phones: Set[str] = set()
 
-    fac_df = _validate_staff(fac_df, db, existing_emails, existing_phones, uploaded_emails, uploaded_phones, "Faculty")
-    admin_df = _validate_staff(admin_df, db, existing_emails, existing_phones, uploaded_emails, uploaded_phones, "Admin")
+    fac_df = _validate_staff(fac_df, db, existing_emails, existing_phones, uploaded_emails, uploaded_phones, "Faculty", fresh_instance)
+    admin_df = _validate_staff(admin_df, db, existing_emails, existing_phones, uploaded_emails, uploaded_phones, "Admin", fresh_instance)
     return fac_df, admin_df
 
 
-def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
+def validate_student(df: pd.DataFrame, db: DbCache, fresh_instance: bool = False) -> pd.DataFrame:
     dept_names = db.department_names()
     prog_names = db.programme_names()
-    quota_names = db.quota_names()
-    intake_names = db.intake_names()
-    mapped_intakes = db.intakes_mapped_to_terms()
-    auth_emails = db.authenticator_emails()
-    auth_phones = db.authenticator_phones()
+    quota_names = set() if fresh_instance else db.quota_names()
+    intake_name_keys = set() if fresh_instance else db.intake_name_keys()
+    mapped_intake_keys = set() if fresh_instance else db.mapped_intake_keys()
+    auth_emails = set() if fresh_instance else db.authenticator_emails()
+    auth_phones = set() if fresh_instance else db.authenticator_phones()
+    existing_reg_ids = set() if fresh_instance else db.user_attribute_registration_ids()
     remarks = []
 
     reg_col = find_column(df, ["registration id"])
@@ -736,7 +853,6 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
             remarks.append("")
             continue
         msgs = []
-        infos = []
 
         # Registration Id
         reg = ""
@@ -744,17 +860,21 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
             reg = normalise_whitespace(row[reg_col])
             if not reg:
                 msgs.append("Registration Id is mandatory")
-            elif reg.lower() in uploaded_reg and len(uploaded_reg[reg.lower()]) > 1:
-                msgs.append("Duplicate Registration Id within uploaded records")
+            else:
+                reg_l = reg.lower()
+                if reg_l in uploaded_reg and len(uploaded_reg[reg_l]) > 1:
+                    msgs.append("Duplicate Registration Id within uploaded records")
+                elif not fresh_instance and reg_l in existing_reg_ids:
+                    msgs.append("Registration Id already exists in system (user_attributes)")
         else:
-            msgs.append("Could not locate 'Registration Id' column")
+            msgs.append("Mandatory field 'Registration Id' is missing in masterdata")
 
         # Name
         if name_col:
             if is_blank(row[name_col]):
                 msgs.append("Name is mandatory")
         else:
-            msgs.append("Could not locate 'Name' column")
+            msgs.append("Mandatory field 'Name' is missing in masterdata")
 
         # Gender
         if gender_col:
@@ -762,7 +882,7 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
             if not gender:
                 msgs.append("Gender must be Male, Female, or Other")
         else:
-            msgs.append("Could not locate 'Gender' column")
+            msgs.append("Mandatory field 'Gender' is missing in masterdata")
 
         # Department
         dept = normalise_whitespace(row.get(dept_col, "")) if dept_col else ""
@@ -789,38 +909,41 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
                 if year_of_joining is None:
                     msgs.append("Batch Year must be a number")
         else:
-            msgs.append("Could not locate 'Batch Year' column")
+            msgs.append("Mandatory field 'Batch Year' is missing in masterdata")
 
         # Intake
         intake = ""
         if intake_col:
-            intake_raw = normalise_whitespace(row[intake_col])
-            intake = intake_raw
-            # Detect Excel date artifacts such as "2018-06-01 00:00:00"
-            looks_like_date = bool(re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", intake))
-            if not intake:
+            intake = normalise_whitespace(row[intake_col])
+        # Derive expected intake from programme + batch year
+        expected_intake = ""
+        if prog and year_of_joining is not None:
+            expected_intake = f"{prog}-{year_of_joining}-intake"
+        if not intake:
+            if expected_intake:
+                intake = expected_intake
+            elif intake_col:
                 msgs.append("Intake is mandatory")
             else:
-                if looks_like_date:
-                    msgs.append("Intake appears to be a date; expected text like 'Programme-Batch-intake'")
-                intake_l = intake.lower()
-                if intake_l not in intake_names:
-                    msgs.append("Intake does not exist in system")
-                elif mapped_intakes and intake_l not in mapped_intakes:
-                    msgs.append("Intake is not mapped to a configured term")
-                # Validate expected pattern programme-batch-intake if programme/batch are available
-                if prog and year_of_joining:
-                    expected_prefix = f"{prog}-{year_of_joining}".lower()
-                    if not intake_l.startswith(expected_prefix):
-                        msgs.append(f"Intake should match pattern '{prog}-{year_of_joining}-intake'")
-        else:
-            msgs.append("Could not locate 'Intake' column")
+                msgs.append("Mandatory field 'Intake' is missing in masterdata")
+
+        if intake:
+            # Detect Excel date artifacts such as "2018-06-01 00:00:00"
+            looks_like_date = bool(re.search(r"\d{4}[-/]\d{1,2}[-/]\d{1,2}", intake))
+            if looks_like_date:
+                msgs.append("Intake appears to be a date; expected text like 'Programme-Batch-intake'")
+            if not fresh_instance:
+                intake_key = _intake_key(intake)
+                if intake_key not in intake_name_keys:
+                    msgs.append("Intake does not exist in programme_batch_intake table")
+                elif mapped_intake_keys and intake_key not in mapped_intake_keys:
+                    msgs.append("Intake is not mapped to a configured term in term_programme_batch table")
 
         # Quota
         quota = normalise_whitespace(row.get(quota_col, "")) if quota_col else ""
         if not quota:
             msgs.append("Quota is mandatory")
-        elif quota.lower() not in quota_names:
+        elif not fresh_instance and quota.lower() not in quota_names:
             msgs.append("Quota does not exist in system")
 
         # Email
@@ -833,12 +956,12 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
                 msgs.append("Invalid Email format")
             else:
                 email_l = email.lower()
-                if email_l in auth_emails:
+                if not fresh_instance and email_l in auth_emails:
                     msgs.append("Email already exists in system")
                 elif email_l in uploaded_emails and len(uploaded_emails[email_l]) > 1:
                     msgs.append("Duplicate Email within uploaded records")
         else:
-            msgs.append("Could not locate 'Email' column")
+            msgs.append("Mandatory field 'Email' is missing in masterdata")
 
         # Phone
         if phone_col:
@@ -849,12 +972,12 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
             elif phone is None:
                 msgs.append("Phone Number must be 10 digits")
             else:
-                if phone in auth_phones:
+                if not fresh_instance and phone in auth_phones:
                     msgs.append("Phone Number already exists in system")
                 elif phone in uploaded_phones and len(uploaded_phones[phone]) > 1:
                     msgs.append("Duplicate Phone Number within uploaded records")
         else:
-            msgs.append("Could not locate 'Phone Number' column")
+            msgs.append("Mandatory field 'Phone Number' is missing in masterdata")
 
         # Lateral entry check
         if admission_col:
@@ -862,12 +985,7 @@ def validate_student(df: pd.DataFrame, db: DbCache) -> pd.DataFrame:
             if "lateral" in admission and year_of_joining is None:
                 msgs.append("Year of Joining cannot be empty for lateral entry students")
 
-        # Defaults
-        infos.append("Student will be created as Day Scholar by default")
-        infos.append("Account creation email will default to No")
-
-        all_msgs = msgs + [f"NOTE: {i}" for i in infos]
-        remarks.append("; ".join(all_msgs) if all_msgs else OK_TEXT)
+        remarks.append("; ".join(msgs) if msgs else OK_TEXT)
 
     df[REMARKS_COL] = remarks
     return df
@@ -928,6 +1046,7 @@ def generate_student_file(
     ok_df = student_df[ok_mask].copy()
 
     dept_col = find_column(ok_df, ["department"])
+    intake_col = find_column(ok_df, ["intake"])
 
     # Column mapping: output column -> source column finder(s)
     out_cols = {
@@ -970,7 +1089,11 @@ def generate_student_file(
             "Quota": normalise_whitespace(row.get(find_column(ok_df, ["quota"]), "")),
             "Admission Type(REGULAR/ LATERAL_ENTRY)": "REGULAR",
             "Year of Joining": batch_year if batch_year is not None else "",
-            "Intake": normalise_whitespace(row.get(find_column(ok_df, ["intake"]), "")),
+            "Intake": _format_intake(
+                normalise_whitespace(row.get(intake_col, "")) if intake_col else "",
+                programme,
+                batch_year,
+            ),
             "Email Id": normalise_whitespace(row.get(find_column(ok_df, ["email"]), "")),
             "Phone Number": clean_phone(row.get(find_column(ok_df, ["phone number"]), "")) or "",
             "Password": "",
@@ -1125,7 +1248,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 def validate_workbook(
     input_path: str,
     output_folder: str,
-    schema: str,
+    instance_type: str,
+    schema: Optional[str],
     tabs: List[str],
     progress_callback=None,
 ) -> List[Tuple[str, int, int]]:
@@ -1136,19 +1260,19 @@ def validate_workbook(
       - student_creation.xlsx      (OK student rows in upload format)
       - staff_creation.xlsx        (OK faculty + admin rows in upload format)
 
+    `instance_type` is either "fresh" (cross-tab validation, no DB) or
+    "existing" (validate against the tenant database; schema required).
+
     Raises exceptions on failure; returns a summary list on success.
     `progress_callback(message)` is called with status updates when provided.
     """
-    if _mysql_import_error:
-        raise RuntimeError(
-            "mysql-connector-python is required but not installed. "
-            "Run: .venv/Scripts/python -m pip install mysql-connector-python"
-        )
+    fresh_instance = str(instance_type).strip().lower() == "fresh"
 
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    cfg = get_db_config(schema)
+    if not fresh_instance and not schema:
+        raise ValueError("Tenant schema is required for existing instances.")
 
     valid_tabs = [t for t in tabs if t in SHEET_MAP]
     if not valid_tabs:
@@ -1160,20 +1284,41 @@ def validate_workbook(
         else:
             print(msg)
 
-    _log(f"Connecting to {cfg['database']} at {cfg['host']} ...")
-    conn = mysql.connector.connect(
-        host=cfg["host"],
-        user=cfg["user"],
-        password=cfg["password"],
-        database=cfg["database"],
-        connection_timeout=15,
-    )
-
-    db = DbCache(conn)
+    # -----------------------------------------------------------------------
+    # Build validation context (DB for existing, masterdata tabs for fresh)
+    # -----------------------------------------------------------------------
+    conn = None
     assessed_sheets: Dict[str, pd.DataFrame] = {}
-    summary: List[Tuple[str, int, int]] = []
 
-    try:
+    if fresh_instance:
+        _log("Fresh instance mode: cross-tab validation (no DB lookup).")
+        # Load department and programme first so FreshContext can use them.
+        for logical in ("department", "programme"):
+            if logical not in valid_tabs:
+                continue
+            meta = SHEET_MAP[logical]
+            xl = pd.ExcelFile(input_path)
+            if meta["sheet"] not in xl.sheet_names:
+                continue
+            assessed_sheets[logical] = load_sheet(input_path, meta["sheet"], header_row=meta["header_row"])
+        db: DbCache = FreshContext(assessed_sheets)
+    else:
+        if _mysql_import_error:
+            raise RuntimeError(
+                "mysql-connector-python is required but not installed. "
+                "Run: .venv/Scripts/python -m pip install mysql-connector-python"
+            )
+        cfg = get_db_config(schema)
+        _log(f"Connecting to {cfg['database']} at {cfg['host']} ...")
+        conn = mysql.connector.connect(
+            host=cfg["host"],
+            user=cfg["user"],
+            password=cfg["password"],
+            database=cfg["database"],
+            connection_timeout=15,
+        )
+        db = DbCache(conn)
+
         # Pre-fetch required tables based on selected tabs
         required_tables = set()
         if "department" in valid_tabs:
@@ -1194,6 +1339,7 @@ def validate_workbook(
                 "programme_batch_intake",
                 "term_programme_batch",
                 "authenticator",
+                "user_attributes",
             })
 
         for table in required_tables:
@@ -1202,6 +1348,9 @@ def validate_workbook(
             except mysql.connector.Error as e:
                 _log(f"WARNING: Could not read table '{table}': {e}")
 
+    summary: List[Tuple[str, int, int]] = []
+
+    try:
         # Validate each selected tab
         for logical in valid_tabs:
             meta = SHEET_MAP[logical]
@@ -1214,18 +1363,23 @@ def validate_workbook(
                 _log(f"WARNING: sheet '{sheet_name}' not found; skipping {logical}")
                 continue
 
-            df = load_sheet(input_path, sheet_name, header_row=header_row)
+            # For fresh mode, department/programme were pre-loaded; still need to validate them.
+            if logical in assessed_sheets:
+                df = assessed_sheets[logical]
+            else:
+                df = load_sheet(input_path, sheet_name, header_row=header_row)
+
             # Keep blank rows so __excel_row__ alignment is preserved; validators skip them
             data_row_count = len(df) - df.apply(_is_blank_row, axis=1).sum()
 
             _log(f"Validating '{sheet_name}' ({data_row_count} data rows) ...")
 
             if logical == "department":
-                df = validate_department(df, db)
+                df = validate_department(df, db, fresh_instance)
             elif logical == "programme":
-                df = validate_programme(df, db)
+                df = validate_programme(df, db, fresh_instance)
             elif logical == "course":
-                df = validate_course(df, db)
+                df = validate_course(df, db, fresh_instance)
             elif logical in ("faculty", "admin"):
                 # Validate both together for cross-sheet duplicate detection
                 if "faculty" not in assessed_sheets and "admin" not in assessed_sheets:
@@ -1233,12 +1387,12 @@ def validate_workbook(
                     admin_meta = SHEET_MAP["admin"]
                     fac_df = load_sheet(input_path, fac_meta["sheet"], header_row=fac_meta["header_row"])
                     admin_df = load_sheet(input_path, admin_meta["sheet"], header_row=admin_meta["header_row"])
-                    fac_df, admin_df = validate_faculty_and_admin(fac_df, admin_df, db)
+                    fac_df, admin_df = validate_faculty_and_admin(fac_df, admin_df, db, fresh_instance)
                     assessed_sheets["faculty"] = fac_df
                     assessed_sheets["admin"] = admin_df
                 df = assessed_sheets[logical]
             elif logical == "student":
-                df = validate_student(df, db)
+                df = validate_student(df, db, fresh_instance)
 
             assessed_sheets[logical] = df
             non_blank_mask = ~df.apply(_is_blank_row, axis=1)
@@ -1338,6 +1492,26 @@ class MasterdataValidatorUI:
         drop_lbl.pack(side="right", padx=(4, 0))
         drop_lbl.drop_target_register(DND_FILES)
         drop_lbl.dnd_bind("<<Drop>>", self._on_drop)
+
+        # ---- Instance type ---------------------------------------------------
+        instance_frame = ttk.LabelFrame(self.root, text="Instance Type")
+        instance_frame.pack(fill="x", **pad)
+
+        self.instance_var = tk.StringVar(value="existing")
+        ttk.Radiobutton(
+            instance_frame,
+            text="Existing (validate against database)",
+            variable=self.instance_var,
+            value="existing",
+            command=self._on_instance_change,
+        ).pack(side="left", padx=(0, 16))
+        ttk.Radiobutton(
+            instance_frame,
+            text="Fresh (cross-tab validation only)",
+            variable=self.instance_var,
+            value="fresh",
+            command=self._on_instance_change,
+        ).pack(side="left")
 
         # ---- Tenant / schema -------------------------------------------------
         schema_frame = ttk.LabelFrame(self.root, text="Tenant / Schema")
@@ -1453,6 +1627,12 @@ class MasterdataValidatorUI:
         else:
             self.output_var.set(os.path.join(desktop, "masterdata_upload_ready"))
 
+    def _on_instance_change(self):
+        if self.instance_var.get() == "fresh":
+            self.schema_combo.configure(state="disabled")
+        else:
+            self.schema_combo.configure(state="normal")
+
     def _refresh_schemas(self):
         self.schema_combo["values"] = list_schemas()
         self._log("Schema list refreshed.")
@@ -1467,6 +1647,7 @@ class MasterdataValidatorUI:
 
     def _on_validate(self):
         input_path = self.file_var.get().strip()
+        instance_type = self.instance_var.get().strip()
         schema = self.schema_var.get().strip()
         output_folder = self.output_var.get().strip()
 
@@ -1476,8 +1657,8 @@ class MasterdataValidatorUI:
         if not os.path.exists(input_path):
             messagebox.showerror("File not found", f"File not found:\n{input_path}")
             return
-        if not schema:
-            messagebox.showerror("Missing schema", "Please enter or select a tenant schema.")
+        if instance_type == "existing" and not schema:
+            messagebox.showerror("Missing schema", "Please enter or select a tenant schema for existing instances.")
             return
         if not output_folder:
             messagebox.showerror("Missing output", "Please specify an output folder path.")
@@ -1497,7 +1678,8 @@ class MasterdataValidatorUI:
                 summary = validate_workbook(
                     input_path,
                     output_folder,
-                    schema,
+                    instance_type,
+                    schema if instance_type == "existing" else None,
                     tabs,
                     progress_callback=lambda msg: self.root.after(0, self._log, msg),
                 )
