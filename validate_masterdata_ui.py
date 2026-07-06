@@ -2,15 +2,18 @@
 Masterdata validator with drag-and-drop GUI for the BSACIST multi-tab Excel template.
 
 Validates department / programme / course / faculty / admin / student sheets
-against a live tenant database and writes a copy of the workbook with a
-"Remarks" column on each assessed sheet.
+against a live tenant database and writes the following into an output folder:
+
+  - masterdata_validated.xlsx  (original workbook + "Remarks" column)
+  - student_creation.xlsx      (OK student rows in bulk-upload format)
+  - staff_creation.xlsx        (OK faculty + admin rows in bulk-upload format)
 
 Usage:
     python validate_masterdata_ui.py
 
 Launches a desktop window where you can drag-and-drop the Excel file,
-pick the tenant schema, select which tabs to validate, and save the
-validated workbook.
+pick the tenant schema, select which tabs to validate, and choose the
+output folder.
 """
 
 from __future__ import annotations
@@ -304,6 +307,52 @@ class DbCache:
             mapped.update({x for x in extra if x})
 
         return mapped
+
+    def department_layer_map(self) -> Dict[str, str]:
+        """Return {lowercase_department_name: layer_name} using the user's query logic."""
+        mapping: Dict[str, str] = {}
+
+        # Ensure tables are cached
+        dept_rows = self.fetch("department")
+        entity_rows = self.fetch("institution_entity")
+        layer_rows = self.fetch("institution_layer")
+
+        if not dept_rows:
+            return mapping
+
+        # Identify columns
+        dept_name_col = self.find_col("department", ["name", "department_name", "dept_name"])
+        parent_entity_col = self.find_col("department", ["parent_entity_id"])
+        entity_id_col = self.find_col("institution_entity", ["id"])
+        entity_name_col = self.find_col("institution_entity", ["name"])
+        layer_id_col = self.find_col("institution_layer", ["id"])
+        layer_name_col = self.find_col("institution_layer", ["name"])
+
+        if not all([dept_name_col, parent_entity_col, entity_id_col, layer_id_col, layer_name_col]):
+            return mapping
+
+        # entity_id -> layer_name
+        entity_to_layer: Dict[str, str] = {}
+        if layer_rows and entity_rows:
+            layer_id_to_name = {
+                str(row.get(layer_id_col)).strip().lower(): str(row.get(layer_name_col)).strip()
+                for row in layer_rows
+                if row.get(layer_id_col) is not None and row.get(layer_name_col) is not None
+            }
+            for row in entity_rows:
+                eid = str(row.get(entity_id_col)).strip().lower() if row.get(entity_id_col) is not None else None
+                lid = str(row.get(layer_id_col)).strip().lower() if row.get(layer_id_col) is not None else None
+                if eid and lid and lid in layer_id_to_name:
+                    entity_to_layer[eid] = layer_id_to_name[lid]
+
+        # department_name -> layer_name
+        for row in dept_rows:
+            dept_name = normalise_whitespace(row.get(dept_name_col, ""))
+            parent_id = str(row.get(parent_entity_col)).strip().lower() if row.get(parent_entity_col) is not None else ""
+            if dept_name and parent_id and parent_id in entity_to_layer:
+                mapping[dept_name.lower()] = entity_to_layer[parent_id]
+
+        return mapping
 
 
 # ---------------------------------------------------------------------------
@@ -861,6 +910,162 @@ def write_output(
 
 
 # ---------------------------------------------------------------------------
+# Upload-format generators
+# ---------------------------------------------------------------------------
+
+
+def generate_student_file(
+    assessed_sheets: Dict[str, pd.DataFrame],
+    output_path: str,
+    layer_map: Dict[str, str],
+) -> int:
+    """Generate the student creation upload file from OK rows only."""
+    student_df = assessed_sheets.get("student")
+    if student_df is None:
+        return 0
+
+    ok_mask = student_df[REMARKS_COL] == OK_TEXT
+    ok_df = student_df[ok_mask].copy()
+
+    dept_col = find_column(ok_df, ["department"])
+
+    # Column mapping: output column -> source column finder(s)
+    out_cols = {
+        "Registration Id": ["registration id"],
+        "Name": ["name"],
+        "Layer": [],
+        "Department": ["department"],
+        "Programme": ["programme", "programme/degree"],
+        "Quota": ["quota"],
+        "Admission Type(REGULAR/ LATERAL_ENTRY)": [],
+        "Year of Joining": ["batch year"],
+        "Intake": ["intake"],
+        "Email Id": ["email"],
+        "Phone Number": ["phone number"],
+        "Password": [],
+        "Gender(Male/Female/Other)": ["gender"],
+        "Section Name": ["section"],
+        "Batch Year": ["batch year"],
+        "Joining Date(YYYY-MM-DD)": [],
+        "Expected Year of Passing": [],
+        "Expected Date of Passing(YYYY-MM-DD)": [],
+        "Send Account Creation Email(YES/NO)": [],
+    }
+
+    # Build the output DataFrame
+    rows = []
+    for _, row in ok_df.iterrows():
+        programme = normalise_whitespace(row.get(find_column(ok_df, ["programme", "programme/degree"]), ""))
+        batch_year = to_int(row.get(find_column(ok_df, ["batch year"]), ""))
+
+        dept_name = normalise_whitespace(row.get(dept_col, "")) if dept_col else ""
+        layer = layer_map.get(dept_name.lower(), "") if dept_name else ""
+
+        record = {
+            "Registration Id": normalise_whitespace(row.get(find_column(ok_df, ["registration id"]), "")),
+            "Name": normalise_whitespace(row.get(find_column(ok_df, ["name"]), "")),
+            "Layer": layer,
+            "Department": dept_name,
+            "Programme": programme,
+            "Quota": normalise_whitespace(row.get(find_column(ok_df, ["quota"]), "")),
+            "Admission Type(REGULAR/ LATERAL_ENTRY)": "REGULAR",
+            "Year of Joining": batch_year if batch_year is not None else "",
+            "Intake": normalise_whitespace(row.get(find_column(ok_df, ["intake"]), "")),
+            "Email Id": normalise_whitespace(row.get(find_column(ok_df, ["email"]), "")),
+            "Phone Number": clean_phone(row.get(find_column(ok_df, ["phone number"]), "")) or "",
+            "Password": "",
+            "Gender(Male/Female/Other)": normalise_gender(row.get(find_column(ok_df, ["gender"]), "")) or "",
+            "Section Name": "",
+            "Batch Year": batch_year if batch_year is not None else "",
+            "Joining Date(YYYY-MM-DD)": "",
+            "Expected Year of Passing": "",
+            "Expected Date of Passing(YYYY-MM-DD)": "",
+            "Send Account Creation Email(YES/NO)": "NO",
+        }
+        rows.append(record)
+
+    out_df = pd.DataFrame(rows, columns=list(out_cols.keys()))
+    out_df.to_excel(output_path, index=False, sheet_name="Sample")
+    return len(out_df)
+
+
+def generate_staff_file(
+    assessed_sheets: Dict[str, pd.DataFrame],
+    output_path: str,
+    layer_map: Dict[str, str],
+) -> int:
+    """Generate the staff bulk creation upload file from OK faculty + admin rows."""
+    fac_df = assessed_sheets.get("faculty")
+    admin_df = assessed_sheets.get("admin")
+
+    parts = []
+    if fac_df is not None:
+        ok_fac = fac_df[fac_df[REMARKS_COL] == OK_TEXT].copy()
+        if not ok_fac.empty:
+            ok_fac["__user_type__"] = "faculty"
+            parts.append(ok_fac)
+    if admin_df is not None:
+        ok_admin = admin_df[admin_df[REMARKS_COL] == OK_TEXT].copy()
+        if not ok_admin.empty:
+            ok_admin["__user_type__"] = "administrator"
+            parts.append(ok_admin)
+
+    if parts:
+        combined = pd.concat(parts, ignore_index=True)
+    else:
+        combined = pd.DataFrame()
+
+    dept_col = find_column(combined, ["department"])
+
+    rows = []
+    for _, row in combined.iterrows():
+        gender = normalise_gender(row.get(find_column(combined, ["gender"]), ""))
+        if gender:
+            gender = gender.lower()
+
+        dept_name = normalise_whitespace(row.get(dept_col, "")) if dept_col else ""
+        layer = layer_map.get(dept_name.lower(), "") if dept_name else ""
+
+        record = {
+            "User Type*": row.get("__user_type__", ""),
+            "Employee ID*": normalise_whitespace(row.get(find_column(combined, ["employee id"]), "")),
+            "Name*": normalise_whitespace(row.get(find_column(combined, ["name"]), "")),
+            "Gender*": gender or "",
+            "Email*": normalise_whitespace(row.get(find_column(combined, ["email"]), "")),
+            "Phone Number*": clean_phone(row.get(find_column(combined, ["phone number"]), "")) or "",
+            "Layer": layer,
+            "Department*": dept_name,
+            "Designation": normalise_whitespace(row.get(find_column(combined, ["designation"]), "")),
+            "Post Name": "",
+            "Reservation Name": "",
+            "Salutation": "",
+            "Accommodation Type": "NON_RESIDENT",
+            "MFA Enabled": "disabled",
+        }
+        rows.append(record)
+
+    out_cols = [
+        "User Type*",
+        "Employee ID*",
+        "Name*",
+        "Gender*",
+        "Email*",
+        "Phone Number*",
+        "Layer",
+        "Department*",
+        "Designation",
+        "Post Name",
+        "Reservation Name",
+        "Salutation",
+        "Accommodation Type",
+        "MFA Enabled",
+    ]
+    out_df = pd.DataFrame(rows, columns=out_cols)
+    out_df.to_excel(output_path, index=False, sheet_name="Sample")
+    return len(out_df)
+
+
+# ---------------------------------------------------------------------------
 # Interactive prompts
 # ---------------------------------------------------------------------------
 
@@ -919,12 +1124,17 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def validate_workbook(
     input_path: str,
-    output_path: str,
+    output_folder: str,
     schema: str,
     tabs: List[str],
     progress_callback=None,
 ) -> List[Tuple[str, int, int]]:
-    """Core validation entry point used by both CLI and UI.
+    """Core validation entry point.
+
+    Validates the selected tabs and writes three outputs into `output_folder`:
+      - masterdata_validated.xlsx  (original workbook + Remarks column)
+      - student_creation.xlsx      (OK student rows in upload format)
+      - staff_creation.xlsx        (OK faculty + admin rows in upload format)
 
     Raises exceptions on failure; returns a summary list on success.
     `progress_callback(message)` is called with status updates when provided.
@@ -973,10 +1183,12 @@ def validate_workbook(
         if "course" in valid_tabs:
             required_tables.update({"department", "course"})
         if "faculty" in valid_tabs or "admin" in valid_tabs:
-            required_tables.update({"department", "authenticator"})
+            required_tables.update({"department", "institution_entity", "institution_layer", "authenticator"})
         if "student" in valid_tabs:
             required_tables.update({
                 "department",
+                "institution_entity",
+                "institution_layer",
                 "programme",
                 "quota",
                 "programme_batch_intake",
@@ -1035,9 +1247,32 @@ def validate_workbook(
             summary.append((logical, total_data, bad))
             _log(f"  {logical}: {total_data} data rows, {bad} with remarks")
 
-        # Write output
-        write_output(input_path, output_path, assessed_sheets)
-        _log(f"Saved validated workbook to: {output_path}")
+        # Ensure output folder exists
+        os.makedirs(output_folder, exist_ok=True)
+
+        # Write masterdata output
+        masterdata_path = os.path.join(output_folder, "masterdata_validated.xlsx")
+        write_output(input_path, masterdata_path, assessed_sheets)
+        _log(f"Saved validated workbook to: {masterdata_path}")
+
+        # Build department -> layer mapping for upload files
+        layer_map = db.department_layer_map()
+
+        # Generate upload-format files from OK rows (files are created even if empty)
+        generated: List[str] = []
+
+        if "student" in assessed_sheets:
+            student_path = os.path.join(output_folder, "student_creation.xlsx")
+            count = generate_student_file(assessed_sheets, student_path, layer_map)
+            _log(f"Generated student_creation.xlsx ({count} OK rows)")
+            generated.append(student_path)
+
+        if "faculty" in assessed_sheets or "admin" in assessed_sheets:
+            staff_path = os.path.join(output_folder, "staff_creation.xlsx")
+            count = generate_staff_file(assessed_sheets, staff_path, layer_map)
+            _log(f"Generated staff_creation.xlsx ({count} OK rows)")
+            generated.append(staff_path)
+
         _log("Summary:")
         for logical, total, bad in summary:
             _log(f"  {logical:12s}: {total:4d} rows checked, {bad:4d} with remarks")
@@ -1142,8 +1377,8 @@ class MasterdataValidatorUI:
         ttk.Button(btn_frame, text="Select All", command=self._select_all).pack(side="left", padx=(0, 8))
         ttk.Button(btn_frame, text="Clear All", command=self._clear_all).pack(side="left")
 
-        # ---- Output path -----------------------------------------------------
-        out_frame = ttk.LabelFrame(self.root, text="Output File")
+        # ---- Output folder ---------------------------------------------------
+        out_frame = ttk.LabelFrame(self.root, text="Output Folder")
         out_frame.pack(fill="x", **pad)
 
         self.output_var = tk.StringVar()
@@ -1201,10 +1436,9 @@ class MasterdataValidatorUI:
             self._set_default_output()
 
     def _browse_output(self):
-        path = filedialog.asksaveasfilename(
-            title="Save validated workbook",
-            defaultextension=".xlsx",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+        path = filedialog.askdirectory(
+            title="Select output folder",
+            mustexist=False,
         )
         if path:
             self.output_var.set(path)
@@ -1212,10 +1446,11 @@ class MasterdataValidatorUI:
     def _set_default_output(self):
         input_path = self.file_var.get().strip()
         if input_path:
-            base, ext = os.path.splitext(input_path)
-            self.output_var.set(base + "_validated" + (ext or ".xlsx"))
+            base, _ = os.path.splitext(input_path)
+            folder = base + "_upload_ready"
+            self.output_var.set(folder)
         else:
-            self.output_var.set(os.path.join(str(Path.home()), "masterdata_validated.xlsx"))
+            self.output_var.set(os.path.join(str(Path.home()), "masterdata_upload_ready"))
 
     def _refresh_schemas(self):
         self.schema_combo["values"] = list_schemas()
@@ -1232,7 +1467,7 @@ class MasterdataValidatorUI:
     def _on_validate(self):
         input_path = self.file_var.get().strip()
         schema = self.schema_var.get().strip()
-        output_path = self.output_var.get().strip()
+        output_folder = self.output_var.get().strip()
 
         if not input_path:
             messagebox.showerror("Missing file", "Please select or drop the masterdata Excel file.")
@@ -1243,8 +1478,8 @@ class MasterdataValidatorUI:
         if not schema:
             messagebox.showerror("Missing schema", "Please enter or select a tenant schema.")
             return
-        if not output_path:
-            messagebox.showerror("Missing output", "Please specify an output file path.")
+        if not output_folder:
+            messagebox.showerror("Missing output", "Please specify an output folder path.")
             return
 
         tabs = [key for key, var in self.tab_vars.items() if var.get()]
@@ -1260,26 +1495,26 @@ class MasterdataValidatorUI:
             try:
                 summary = validate_workbook(
                     input_path,
-                    output_path,
+                    output_folder,
                     schema,
                     tabs,
                     progress_callback=lambda msg: self.root.after(0, self._log, msg),
                 )
-                self.root.after(0, self._on_success, output_path, summary)
+                self.root.after(0, self._on_success, output_folder, summary)
             except Exception as exc:
                 self.root.after(0, self._on_error, exc)
 
         thread = threading.Thread(target=run, daemon=True)
         thread.start()
 
-    def _on_success(self, output_path: str, summary: list):
+    def _on_success(self, output_folder: str, summary: list):
         self.validate_btn.configure(state="normal")
-        lines = ["Validation complete.", f"Output saved to: {output_path}", ""]
+        lines = ["Validation complete.", f"Output folder: {output_folder}", ""]
         lines.append("Summary:")
         for logical, total, bad in summary:
             lines.append(f"  {logical:12s}: {total:4d} rows checked, {bad:4d} with remarks")
         self._log("\n".join(lines))
-        messagebox.showinfo("Validation Complete", f"Validated workbook saved to:\n{output_path}")
+        messagebox.showinfo("Validation Complete", f"Output files saved to:\n{output_folder}")
 
     def _on_error(self, exc: Exception):
         self.validate_btn.configure(state="normal")
