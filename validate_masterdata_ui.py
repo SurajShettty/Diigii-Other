@@ -19,6 +19,7 @@ output folder.
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import re
@@ -83,13 +84,13 @@ PHONE_RE = re.compile(r"^\d{10}$")
 
 
 def normalise_whitespace(value: Any) -> str:
-    """Return a stripped string, treating null-like values as empty."""
+    """Return a stripped string with collapsed whitespace, treating null-like values as empty."""
     if value is None:
         return ""
     s = str(value).strip()
     if s.lower() in {"nan", "none", "nat", "null"}:
         return ""
-    return s
+    return re.sub(r"\s+", " ", s)
 
 
 def is_blank(value: Any) -> bool:
@@ -166,6 +167,45 @@ def find_column(df: pd.DataFrame, prefixes: List[str]) -> Optional[str]:
             if col_norm.startswith(prefix):
                 return col
     return None
+
+
+def fuzzy_match_sheet(target: str, available: List[str], cutoff: float = 0.6) -> Optional[str]:
+    """Return the best fuzzy match for *target* among *available* sheet names.
+
+    Exact matches take precedence. Returns ``None`` if no match is good enough.
+    """
+    if not available:
+        return None
+    target_norm = target.strip().lower()
+    norm_map = {name.strip().lower(): name for name in available}
+    if target_norm in norm_map:
+        return norm_map[target_norm]
+    matches = difflib.get_close_matches(target_norm, list(norm_map.keys()), n=1, cutoff=cutoff)
+    if matches:
+        return norm_map[matches[0]]
+    return None
+
+
+def resolve_sheet_names(input_path: str, cutoff: float = 0.6) -> Tuple[Dict[str, str], List[str]]:
+    """Map logical tab keys to actual sheet names found in the workbook.
+
+    Returns a mapping ``{logical_key: actual_sheet_name}`` and a list of
+    warning messages for sheets that were matched fuzzily.
+    """
+    xl = pd.ExcelFile(input_path)
+    available = xl.sheet_names
+    resolved: Dict[str, str] = {}
+    warnings: List[str] = []
+    for logical, meta in SHEET_MAP.items():
+        target = meta["sheet"]
+        actual = fuzzy_match_sheet(target, available, cutoff)
+        if actual:
+            resolved[logical] = actual
+            if actual != target:
+                warnings.append(
+                    f"Sheet '{target}' not found; using fuzzy match '{actual}' for {logical}"
+                )
+    return resolved, warnings
 
 
 def load_sheet(path: str, sheet: str, header_row: int = 0) -> pd.DataFrame:
@@ -1008,20 +1048,29 @@ def write_output(
     input_path: str,
     output_path: str,
     assessed_sheets: Dict[str, pd.DataFrame],
+    sheet_name_map: Optional[Dict[str, str]] = None,
 ) -> None:
     """Copy the original workbook and overwrite the assessed sheets with their Remarks column."""
     import openpyxl
 
     wb = openpyxl.load_workbook(input_path)
+    if sheet_name_map is None:
+        sheet_name_map, _ = resolve_sheet_names(input_path)
 
     for logical_name, df in assessed_sheets.items():
-        sheet_name = SHEET_MAP[logical_name]["sheet"]
-        if sheet_name not in wb.sheetnames:
+        sheet_name = sheet_name_map.get(logical_name)
+        if not sheet_name or sheet_name not in wb.sheetnames:
             continue
         ws = wb[sheet_name]
 
         # Determine header row for this sheet (1-based in openpyxl)
         header_row = SHEET_MAP[logical_name]["header_row"] + 1
+
+        # Trim leading/trailing whitespace and collapse double spaces in all data cells
+        for row in ws.iter_rows(min_row=header_row + 1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+            for cell in row:
+                if isinstance(cell.value, str):
+                    cell.value = normalise_whitespace(cell.value)
 
         # Add Remarks header
         remarks_col_idx = ws.max_column + 1
@@ -1294,6 +1343,13 @@ def validate_workbook(
             print(msg)
 
     # -----------------------------------------------------------------------
+    # Resolve actual sheet names (tolerate spelling mistakes in tab names)
+    # -----------------------------------------------------------------------
+    actual_sheet_map, sheet_warnings = resolve_sheet_names(input_path)
+    for warning in sheet_warnings:
+        _log(f"WARNING: {warning}")
+
+    # -----------------------------------------------------------------------
     # Build validation context (DB for existing, masterdata tabs for fresh)
     # -----------------------------------------------------------------------
     conn = None
@@ -1305,11 +1361,12 @@ def validate_workbook(
         for logical in ("department", "programme"):
             if logical not in valid_tabs:
                 continue
-            meta = SHEET_MAP[logical]
-            xl = pd.ExcelFile(input_path)
-            if meta["sheet"] not in xl.sheet_names:
+            actual_sheet = actual_sheet_map.get(logical)
+            if not actual_sheet:
+                _log(f"WARNING: sheet for {logical} not found; skipping")
                 continue
-            assessed_sheets[logical] = load_sheet(input_path, meta["sheet"], header_row=meta["header_row"])
+            header_row = SHEET_MAP[logical]["header_row"]
+            assessed_sheets[logical] = load_sheet(input_path, actual_sheet, header_row=header_row)
         db: DbCache = FreshContext(assessed_sheets)
     else:
         if _mysql_import_error:
@@ -1362,26 +1419,22 @@ def validate_workbook(
     try:
         # Validate each selected tab
         for logical in valid_tabs:
-            meta = SHEET_MAP[logical]
-            sheet_name = meta["sheet"]
-            header_row = meta["header_row"]
-
-            # Check sheet exists
-            xl = pd.ExcelFile(input_path)
-            if sheet_name not in xl.sheet_names:
-                _log(f"WARNING: sheet '{sheet_name}' not found; skipping {logical}")
+            actual_sheet = actual_sheet_map.get(logical)
+            if not actual_sheet:
+                _log(f"WARNING: sheet for {logical} not found; skipping")
                 continue
+            header_row = SHEET_MAP[logical]["header_row"]
 
             # For fresh mode, department/programme were pre-loaded; still need to validate them.
             if logical in assessed_sheets:
                 df = assessed_sheets[logical]
             else:
-                df = load_sheet(input_path, sheet_name, header_row=header_row)
+                df = load_sheet(input_path, actual_sheet, header_row=header_row)
 
             # Keep blank rows so __excel_row__ alignment is preserved; validators skip them
             data_row_count = len(df) - df.apply(_is_blank_row, axis=1).sum()
 
-            _log(f"Validating '{sheet_name}' ({data_row_count} data rows) ...")
+            _log(f"Validating '{actual_sheet}' ({data_row_count} data rows) ...")
 
             if logical == "department":
                 df = validate_department(df, db, fresh_instance)
@@ -1392,14 +1445,17 @@ def validate_workbook(
             elif logical in ("faculty", "admin"):
                 # Validate both together for cross-sheet duplicate detection
                 if "faculty" not in assessed_sheets and "admin" not in assessed_sheets:
-                    fac_meta = SHEET_MAP["faculty"]
-                    admin_meta = SHEET_MAP["admin"]
-                    fac_df = load_sheet(input_path, fac_meta["sheet"], header_row=fac_meta["header_row"])
-                    admin_df = load_sheet(input_path, admin_meta["sheet"], header_row=admin_meta["header_row"])
-                    fac_df, admin_df = validate_faculty_and_admin(fac_df, admin_df, db, fresh_instance)
-                    assessed_sheets["faculty"] = fac_df
-                    assessed_sheets["admin"] = admin_df
-                df = assessed_sheets[logical]
+                    fac_sheet = actual_sheet_map.get("faculty")
+                    admin_sheet = actual_sheet_map.get("admin")
+                    if fac_sheet and admin_sheet:
+                        fac_header = SHEET_MAP["faculty"]["header_row"]
+                        admin_header = SHEET_MAP["admin"]["header_row"]
+                        fac_df = load_sheet(input_path, fac_sheet, header_row=fac_header)
+                        admin_df = load_sheet(input_path, admin_sheet, header_row=admin_header)
+                        fac_df, admin_df = validate_faculty_and_admin(fac_df, admin_df, db, fresh_instance)
+                        assessed_sheets["faculty"] = fac_df
+                        assessed_sheets["admin"] = admin_df
+                df = assessed_sheets.get(logical, pd.DataFrame())
             elif logical == "student":
                 df = validate_student(df, db, fresh_instance)
 
@@ -1415,7 +1471,7 @@ def validate_workbook(
 
         # Write masterdata output
         masterdata_path = os.path.join(output_folder, "masterdata_validated.xlsx")
-        write_output(input_path, masterdata_path, assessed_sheets)
+        write_output(input_path, masterdata_path, assessed_sheets, sheet_name_map=actual_sheet_map)
         _log(f"Saved validated workbook to: {masterdata_path}")
 
         # Build department -> layer mapping for upload files
