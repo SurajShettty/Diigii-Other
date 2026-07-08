@@ -1047,6 +1047,28 @@ def format_final_report(df):
 SUBJECT_COL_RE = re.compile(r'^SUB(\d+)(.*)$')
 
 
+def _actual_max_subjects(df):
+    """Return the highest subject index that has real subject data.
+
+    A subject number is considered populated if at least one row has a
+    non-empty course code (SUBn) or course name (SUBnNM). This prevents
+    trailing empty subject groups from being emitted when the global
+    column set is wider than the subjects actually present in a term.
+    """
+    max_with_data = 0
+    for col in df.columns:
+        m = SUBJECT_COL_RE.match(col)
+        if not m:
+            continue
+        suffix = m.group(2)
+        if suffix not in ('', 'NM'):
+            continue
+        series = df[col].replace('', np.nan)
+        if series.notna().any():
+            max_with_data = max(max_with_data, int(m.group(1)))
+    return max_with_data
+
+
 def load_template_columns(template_path):
     """Read the header row of the uploaded template file and return its columns in order."""
     p = Path(template_path)
@@ -1068,15 +1090,18 @@ def apply_template_columns(df, template_cols):
     number of subjects produced for any student. All other (student-level) columns
     are kept exactly as they appear in the template; any column not produced by the
     report is added empty so the output matches the template exactly.
+
+    Empty trailing subject groups (no course code or name for that subject number
+    in any row) are omitted so the output does not contain blank SUBn* columns.
     """
     logger.info("Applying template columns...")
 
-    # Determine the max subject index present in the generated data
-    max_subjects = 0
-    for col in df.columns:
-        m = SUBJECT_COL_RE.match(col)
-        if m:
-            max_subjects = max(max_subjects, int(m.group(1)))
+    # Determine the max subject index that actually has data. Using the column
+    # presence alone would keep empty groups generated because another term or
+    # student had more subjects.
+    max_subjects = _actual_max_subjects(df)
+    if max_subjects == 0:
+        max_subjects = 1  # keep at least one subject block if the template expects it
 
     # Subject-column suffixes from the template, in template order (e.g. 'NM', '', '_TOT').
     # Only take the FIRST subject block — the template may list more than one sample
