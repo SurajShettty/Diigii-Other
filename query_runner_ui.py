@@ -1,8 +1,8 @@
 """Generic query runner UI.
 
-Pick a tenant schema from db_credentials.json, enter any SELECT query, choose an
-export path/format, and run. Results are saved to the chosen path and a short
-preview is shown in the window.
+Pick a tenant schema from db_credentials.json, enter any SELECT query, click
+Preview to fetch and view the first 20 rows (with the total row count), then
+click Export to save the full result to the chosen path/format.
 
 Run:
     python query_runner_ui.py
@@ -43,6 +43,7 @@ class QueryRunnerUI:
         self.root.geometry("900x750")
         self.root.minsize(700, 550)
 
+        self._last_df: pd.DataFrame | None = None
         self._build_widgets()
         self._set_default_output()
 
@@ -100,19 +101,30 @@ class QueryRunnerUI:
         ttk.Button(export_frame, text="Browse", command=self._browse_output).pack(side="right", padx=(4, 0))
         ttk.Button(export_frame, text="Reset", command=self._set_default_output).pack(side="right", padx=(4, 0))
 
-        # ---- Run button ------------------------------------------------------
+        # ---- Action buttons --------------------------------------------------
         btn_frame = ttk.Frame(self.root)
         btn_frame.pack(fill="x", padx=12, pady=(4, 0))
 
-        self.run_btn = ttk.Button(
+        self.preview_btn = ttk.Button(
             btn_frame,
-            text="Run Query & Export",
-            command=self._on_run,
+            text="Preview (20 rows)",
+            command=self._on_preview,
         )
-        self.run_btn.pack(side="left")
+        self.preview_btn.pack(side="left", padx=(0, 8))
+
+        self.export_btn = ttk.Button(
+            btn_frame,
+            text="Export to Excel/CSV",
+            command=self._on_export,
+            state="disabled",
+        )
+        self.export_btn.pack(side="left")
+
+        self.rows_var = tk.StringVar(value="Rows fetched: 0")
+        ttk.Label(btn_frame, textvariable=self.rows_var).pack(side="right")
 
         # ---- Preview ---------------------------------------------------------
-        preview_frame = ttk.LabelFrame(self.root, text="Preview (first 100 rows)")
+        preview_frame = ttk.LabelFrame(self.root, text="Preview (first 20 rows)")
         preview_frame.pack(fill="both", expand=True, **pad)
 
         # Treeview with scrollbars
@@ -180,42 +192,51 @@ class QueryRunnerUI:
         self.schema_combo["values"] = list_schemas()
         self._log("Schema list refreshed.")
 
-    def _on_run(self):
+    def _validate_inputs(self, require_output: bool = False):
         if _mysql_import_error:
             messagebox.showerror(
                 "Missing dependency",
                 f"mysql-connector-python is required.\n{_mysql_import_error}",
             )
-            return
+            return None, None
 
         schema = self.schema_var.get().strip()
         query = self.query_text.get("1.0", "end").strip()
-        output_path = self.output_var.get().strip()
-        fmt = self.format_var.get()
 
         if not schema:
             messagebox.showerror("Missing schema", "Please select a tenant schema.")
-            return
+            return None, None
         if not query:
             messagebox.showerror("Missing query", "Please enter a SQL query.")
-            return
-        if not output_path:
+            return None, None
+        if require_output and not self.output_var.get().strip():
             messagebox.showerror("Missing output", "Please specify an export path.")
-            return
+            return None, None
 
-        # Normalize extension based on selected format
+        return schema, query
+
+    def _normalize_output_path(self):
+        output_path = self.output_var.get().strip()
+        fmt = self.format_var.get()
         base, ext = os.path.splitext(output_path)
         if fmt == "CSV (.csv)":
             if ext.lower() != ".csv":
                 output_path = base + ".csv"
-                self.output_var.set(output_path)
         else:
             if ext.lower() != ".xlsx":
                 output_path = base + ".xlsx"
-                self.output_var.set(output_path)
+        self.output_var.set(output_path)
+        return output_path
+
+    def _on_preview(self):
+        schema, query = self._validate_inputs()
+        if schema is None:
+            return
 
         self._clear_log()
-        self.run_btn.configure(state="disabled")
+        self.preview_btn.configure(state="disabled")
+        self.export_btn.configure(state="disabled")
+        self.rows_var.set("Rows fetched: ...")
         self._log("Connecting to database...")
 
         def run():
@@ -233,17 +254,10 @@ class QueryRunnerUI:
                 try:
                     self.root.after(0, self._log, "Running query...")
                     df = pd.read_sql(query, conn)
+                    self._last_df = df
                     self.root.after(0, self._log, f"Fetched {len(df)} row(s), {len(df.columns)} column(s).")
-
-                    self.root.after(0, self._log, f"Exporting to {output_path} ...")
-                    if fmt == "CSV (.csv)":
-                        df.to_csv(output_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
-                    else:
-                        df.to_excel(output_path, index=False, engine="openpyxl")
-                    self.root.after(0, self._log, "Export complete.")
-
-                    self.root.after(0, self._load_preview, df)
-                    self.root.after(0, self._on_success, output_path, len(df))
+                    self.root.after(0, self._load_preview, df.head(20))
+                    self.root.after(0, self._on_preview_success, len(df))
                 finally:
                     conn.close()
             except Exception as exc:
@@ -252,6 +266,75 @@ class QueryRunnerUI:
         thread = threading.Thread(target=run, daemon=True)
         thread.start()
 
+    def _on_export(self):
+        schema, query = self._validate_inputs(require_output=True)
+        if schema is None:
+            return
+
+        output_path = self._normalize_output_path()
+        fmt = self.format_var.get()
+
+        # If no preview has been run, fetch the data first.
+        if self._last_df is None:
+            self._clear_log()
+            self.preview_btn.configure(state="disabled")
+            self.export_btn.configure(state="disabled")
+            self._log("No preview data found. Fetching query results...")
+
+            def fetch_and_export():
+                try:
+                    cfg = get_db_config(schema)
+                    self.root.after(0, self._log, f"Using schema: {cfg['database']}")
+
+                    conn = mysql.connector.connect(
+                        host=cfg["host"],
+                        user=cfg["user"],
+                        password=cfg["password"],
+                        database=cfg["database"],
+                        connection_timeout=60,
+                    )
+                    try:
+                        self.root.after(0, self._log, "Running query...")
+                        df = pd.read_sql(query, conn)
+                        self._last_df = df
+                        self.root.after(0, self._log, f"Fetched {len(df)} row(s), {len(df.columns)} column(s).")
+                        self.root.after(0, self._log, f"Exporting to {output_path} ...")
+                        self._save_dataframe(self._last_df, output_path, fmt)
+                        self.root.after(0, self._log, "Export complete.")
+                        self.root.after(0, self._on_success, output_path, len(df))
+                    finally:
+                        conn.close()
+                except Exception as exc:
+                    self.root.after(0, self._on_error, exc)
+
+            thread = threading.Thread(target=fetch_and_export, daemon=True)
+            thread.start()
+            return
+
+        # Data already fetched from preview
+        self._clear_log()
+        self.export_btn.configure(state="disabled")
+        self.preview_btn.configure(state="disabled")
+        self._log(f"Exporting {len(self._last_df)} row(s) to {output_path} ...")
+
+        def run():
+            try:
+                self._save_dataframe(self._last_df, output_path, fmt)
+                self.root.after(0, self._log, "Export complete.")
+                self.root.after(0, self._on_success, output_path, len(self._last_df))
+            except Exception as exc:
+                self.root.after(0, self._on_error, exc)
+
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+
+    @staticmethod
+    def _save_dataframe(df: pd.DataFrame, output_path: str, fmt: str):
+        if fmt == "CSV (.csv)":
+            df.to_csv(output_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
+        else:
+            df.to_excel(output_path, index=False, engine="openpyxl")
+
     def _load_preview(self, df: pd.DataFrame):
         # Clear previous preview
         self.tree.delete(*self.tree.get_children())
@@ -259,14 +342,13 @@ class QueryRunnerUI:
             self.tree.heading(col, text="")
         self.tree["columns"] = ()
 
-        preview_df = df.head(100)
-        cols = [str(c) for c in preview_df.columns]
+        cols = [str(c) for c in df.columns]
         self.tree["columns"] = cols
         for col in cols:
             self.tree.heading(col, text=col)
             self.tree.column(col, width=120, anchor="w")
 
-        for _, row in preview_df.iterrows():
+        for _, row in df.iterrows():
             values = [self._format_cell(v) for v in row.values]
             self.tree.insert("", "end", values=values)
 
@@ -278,15 +360,27 @@ class QueryRunnerUI:
             return str(value)
         return str(value)
 
+    def _on_preview_success(self, row_count: int):
+        self.rows_var.set(f"Rows fetched: {row_count}")
+        self.preview_btn.configure(state="normal")
+        self.export_btn.configure(state="normal")
+
     def _on_success(self, output_path: str, row_count: int):
-        self.run_btn.configure(state="normal")
+        self.rows_var.set(f"Rows fetched: {row_count}")
+        self.preview_btn.configure(state="normal")
+        self.export_btn.configure(state="normal")
         messagebox.showinfo(
             "Export Complete",
             f"Saved {row_count} row(s) to:\n{output_path}",
         )
 
     def _on_error(self, exc: Exception):
-        self.run_btn.configure(state="normal")
+        self.rows_var.set("Rows fetched: 0")
+        self.preview_btn.configure(state="normal")
+        if self._last_df is not None:
+            self.export_btn.configure(state="normal")
+        else:
+            self.export_btn.configure(state="disabled")
         msg = f"ERROR: {exc}"
         self._log(msg)
         messagebox.showerror("Query Failed", str(exc))
