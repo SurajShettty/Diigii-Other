@@ -16,10 +16,30 @@ from pathlib import Path
 import os
 import shutil
 import sys
+import re
 
 # Make the repo-root helper importable (this script lives one level down).
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db_env import get_db_config
+
+
+def _sanitize_filename(name, replacement=' '):
+    """Strip/replace characters that are illegal in Windows file/folder names."""
+    if name is None:
+        return ''
+    name = str(name).strip()
+    # Windows reserved characters
+    name = re.sub(r'[<>:"/\\|?*]', replacement, name)
+    # remove trailing dots/spaces which are also illegal on Windows
+    name = name.rstrip('. ')
+    # avoid reserved device names by appending an underscore if needed
+    reserved = {'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+                'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4',
+                'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'}
+    base = name.split('.')[0].upper()
+    if base in reserved:
+        name = name + '_'
+    return name
 
 
 def number_to_alphabet(n):
@@ -315,8 +335,9 @@ def fetch_user_data(conn, student_ukids):
 
 def create_course_header(df, frmt):
     df['course_header'] = df.apply(
-        lambda r: setting['course_header'].format(course_code=r['course_code'], course_name=r['course_name'],
-                                                  course_credits=r['course_credits']), axis=1)
+        lambda r: _sanitize_filename(
+            setting['course_header'].format(course_code=r['course_code'], course_name=r['course_name'],
+                                            course_credits=r['course_credits']), replacement='-'), axis=1)
     return df
 
 
@@ -353,7 +374,7 @@ if __name__ == '__main__':
         except KeyError as e:
             raise SystemExit(f'Error: {e}')
 
-        output_folder_name = instance.split('.')[0].upper() + ' TR Reports'
+        output_folder_name = _sanitize_filename(instance.split('.')[0].upper() + ' TR Reports')
         instance_name = get_instance_name(instance)
         print(instance_name)
 
@@ -505,9 +526,9 @@ if __name__ == '__main__':
             term_list = final_data['term_name_regular'].drop_duplicates().to_list()
 
         for x in term_list:
-            # folders are named with colons replaced by spaces; use the same
+            # folders are named with illegal characters replaced; use the same
             # sanitized name for both the existence check and (re)creation.
-            term_dir = downloads_path + "\\" + output_folder_name + '\\' + x.replace(':', ' ')
+            term_dir = downloads_path + "\\" + output_folder_name + '\\' + _sanitize_filename(x)
             if os.path.exists(term_dir):
                 shutil.rmtree(term_dir, ignore_errors=True)
             os.makedirs(term_dir)
@@ -654,8 +675,8 @@ if __name__ == '__main__':
                 no_of_cols_pivot = len(final.columns)
 
                 # Define Excel Writer
-                fileName = row['programme_name'] + '-' + str(row['year_of_joining'])
-                term_name_safe = row["term_name_regular"].replace(':', ' ')  # Replace colons with spaces
+                fileName = _sanitize_filename(row['programme_name']) + '-' + str(row['year_of_joining'])
+                term_name_safe = _sanitize_filename(row["term_name_regular"])  # Replace illegal chars
                 # Save under the same base path the folders were created in (line ~478),
                 # and make sure the term folder exists before writing.
                 out_dir = os.path.join(downloads_path, output_folder_name, term_name_safe)
