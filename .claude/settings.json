@@ -6,5 +6,27 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('generate_feedback_pdf_class_level.py',encoding='utf-8'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('generate_feedback_pdf_course_level.py',encoding='utf-8'\\).read\\(\\)\\); print\\('syntax OK'\\)\")"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"(New-Object Media.SoundPlayer 'C:\\Users\\suraj\\Downloads\\mac_os_breeze.wav').PlaySync()\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"(New-Object Media.SoundPlayer 'C:\\Users\\suraj\\Downloads\\mac_os_breeze.wav').PlaySync()\""
+          }
+        ]
+      }
+    ]
   }
 }
