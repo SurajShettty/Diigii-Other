@@ -20,6 +20,9 @@ Output: a single Excel file with 5 sheets:
 Usage:
   Just edit the paths in the CONFIG section below and run:
       python schedule_feature_logic.py
+
+Query for features file (run across all instances):
+select f.feature,default_name,feature_custom_name,description,status from college_feature_flag t1 left join feature f on f.id = t1.feature_id
 """
 
 import json
