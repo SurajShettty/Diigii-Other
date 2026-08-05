@@ -1,15 +1,18 @@
 """
 Feature Scheduling Logic
 =========================
-Figures out which features SHOULD be scheduled for each tenant, based on:
-  1. feature_dag_tags  -> which tag(s)/flag(s) each feature depends on
+Figures out which pipelines/features SHOULD be scheduled for each tenant, based on:
+  1. pipelines.json    -> per (tenant, dag_id): which feature_flags it depends on,
+                          and whether it's currently enabled (enabled: true/false)
   2. features (flags)  -> which flags are OPEN/CLOSED per tenant
-  3. tenant_feature     -> which features are CURRENTLY scheduled per tenant
 
 Rule:
-  - Feature tagged MODULE_AGNOSTIC          -> always required (no flag needed)
-  - Feature has no tags / tag not a known flag -> UNMAPPED (can't decide automatically)
-  - Otherwise -> required only if ANY of its tags is an OPEN flag for that tenant
+  - dag tagged MODULE_AGNOSTIC              -> always required (no flag needed)
+  - dag has no feature_flags / unknown flag -> UNMAPPED (can't decide automatically)
+  - Otherwise -> required only if ANY of its feature_flags is an OPEN flag for that tenant
+
+"Currently scheduled" = enabled: true in pipelines.json.
+enabled: false means it was scheduled once and has since been disabled -> NOT currently scheduled.
 
 Output: a single Excel file with 5 sheets:
   Summary, Missing_Schedules, Extra_Schedules_Review, Unmapped_Features, Full_Detail
@@ -19,6 +22,7 @@ Usage:
       python schedule_feature_logic.py
 """
 
+import json
 import re
 
 import pandas as pd
@@ -30,10 +34,9 @@ from openpyxl.utils import get_column_letter
 # CONFIG - edit these paths before running
 # ---------------------------------------------------------------------------
 
-TENANT_FEATURE_PATH = "tenant_feature.csv"        # tenant_id, feature_name
-FEATURES_FLAGS_PATH = "features.xlsx"             # instance, feature, status (open/closed) - .xlsx or .csv
-FEATURE_DAG_TAGS_PATH = "feature_dag_tags.csv"     # feature_name, tags, dag_file
-OUTPUT_PATH = "feature_scheduling_report.xlsx"     # output report
+PIPELINES_JSON_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\pipelines.json"            # tenant_id, dag_id, feature_flags, enabled
+FEATURES_FLAGS_PATH = "C:\\Users\\suraj\\Downloads\\features.xlsx"             # instance, feature, status (open/closed) - .xlsx or .csv
+OUTPUT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\feature_scheduling_report.xlsx"      # output report
 
 ALWAYS_ON_TAG = "MODULE_AGNOSTIC"
 
@@ -42,26 +45,59 @@ ALWAYS_ON_TAG = "MODULE_AGNOSTIC"
 # 1. LOADERS
 # ---------------------------------------------------------------------------
 
-def split_tags(raw: str):
-    """Split a tag string into clean individual tags.
-    Handles both ';' and ',' as separators (source data has an occasional
-    typo using a comma instead of a semicolon)."""
-    if not raw or pd.isna(raw):
+def split_flag_values(raw):
+    """Split a single feature_flags entry into clean individual flags.
+    Handles both ';' and ',' as separators, in case a single list item
+    ever contains multiple comma-separated flags (e.g. "A,B")."""
+    if raw is None:
         return []
     parts = re.split(r"[;,]", str(raw))
     return [p.strip() for p in parts if p.strip()]
 
 
-def load_feature_tags(path: str):
-    """feature_dag_tags file -> {feature_name: [tags]}, {feature_name: dag_file}"""
-    df = pd.read_csv(path, dtype=str).fillna("")
-    feature_tags = {}
-    feature_dagfile = {}
-    for _, row in df.iterrows():
-        fname = row["feature_name"].strip()
-        feature_tags[fname] = split_tags(row["tags"])
-        feature_dagfile[fname] = row.get("dag_file", "").strip()
-    return feature_tags, feature_dagfile
+def load_pipelines_json(path: str):
+    """pipelines.json -> 
+       dag_tags:        {dag_id: [feature_flags]}
+       dag_tables:      {dag_id: [tables]}   (kept for reference in the report)
+       tenant_scheduled: {tenant_id: set(dag_id)}  where enabled == True
+       all_tenants:     set of every tenant_id seen (enabled true or false)
+    """
+    with open(path) as f:
+        payload = json.load(f)
+
+    # supports either a bare list, or the {"results": [...]} wrapper seen in this file
+    records = payload["results"] if isinstance(payload, dict) and "results" in payload else payload
+
+    dag_tags = {}
+    dag_tables = {}
+    tenant_scheduled = {}
+    all_tenants = set()
+
+    for rec in records:
+        tenant = str(rec.get("tenant_id", "")).strip()
+        dag_id = str(rec.get("dag_id", "")).strip()
+        if not tenant or not dag_id:
+            continue
+        all_tenants.add(tenant)
+
+        # flatten feature_flags, splitting any comma/semicolon-joined entries
+        raw_flags = rec.get("feature_flags") or []
+        flags = []
+        for item in raw_flags:
+            flags.extend(split_flag_values(item))
+        # keep the union of flags seen for this dag_id (should be consistent
+        # across tenants, but union protects against any inconsistency)
+        existing = dag_tags.setdefault(dag_id, [])
+        for flag in flags:
+            if flag not in existing:
+                existing.append(flag)
+
+        dag_tables.setdefault(dag_id, rec.get("tables") or [])
+
+        if rec.get("enabled") is True:
+            tenant_scheduled.setdefault(tenant, set()).add(dag_id)
+
+    return dag_tags, dag_tables, tenant_scheduled, all_tenants
 
 
 def load_tenant_flags(path: str):
@@ -87,38 +123,27 @@ def load_tenant_flags(path: str):
     return tenant_open_flags, all_known_flags
 
 
-def load_tenant_scheduled(path: str):
-    """tenant_feature file -> {tenant: set(scheduled feature_name)}"""
-    df = pd.read_csv(path, dtype=str).fillna("")
-    tenant_scheduled = {}
-    for _, row in df.iterrows():
-        t = row["tenant_id"].strip()
-        fn = row["feature_name"].strip()
-        tenant_scheduled.setdefault(t, set()).add(fn)
-    return tenant_scheduled
-
-
 # ---------------------------------------------------------------------------
 # 2. CORE LOGIC
 # ---------------------------------------------------------------------------
 
-def build_report(feature_tags, feature_dagfile, tenant_open_flags,
-                  all_known_flags, tenant_scheduled):
-    all_tenants = sorted(set(tenant_open_flags) | set(tenant_scheduled))
+def build_report(dag_tags, dag_tables, tenant_open_flags,
+                  all_known_flags, tenant_scheduled, all_tenants):
+    all_tenants = sorted(all_tenants | set(tenant_open_flags) | set(tenant_scheduled))
 
     rows = []
     for tenant in all_tenants:
         open_flags = tenant_open_flags.get(tenant, set())
         scheduled = tenant_scheduled.get(tenant, set())
 
-        for feature, tags in feature_tags.items():
-            currently_scheduled = feature in scheduled
+        for dag_id, tags in dag_tags.items():
+            currently_scheduled = dag_id in scheduled
 
             if not tags:
                 dep_type = "Unknown (unmapped tag)"
                 status = "UNMAPPED"
                 matched = ""
-                reason = "No tags/dag mapping found for this feature"
+                reason = "No feature_flags found for this pipeline"
 
             elif ALWAYS_ON_TAG in tags:
                 dep_type = "Always-on (no flag)"
@@ -132,7 +157,7 @@ def build_report(feature_tags, feature_dagfile, tenant_open_flags,
                     dep_type = "Unknown (unmapped tag)"
                     status = "UNMAPPED"
                     matched = ""
-                    reason = f"Tag(s) [{', '.join(tags)}] not found among known flags"
+                    reason = f"Flag(s) [{', '.join(tags)}] not found among known flags"
                 else:
                     matched_open = [t for t in known_tags if t in open_flags]
                     dep_type = "Flag-gated"
@@ -143,7 +168,7 @@ def build_report(feature_tags, feature_dagfile, tenant_open_flags,
                     else:
                         status = "NOT_REQUIRED"
                         matched = ""
-                        reason = f"None of tag(s) [{', '.join(known_tags)}] are open"
+                        reason = f"None of flag(s) [{', '.join(known_tags)}] are open"
 
             if status == "REQUIRED":
                 action = "OK - already scheduled" if currently_scheduled else "SCHEDULE (missing)"
@@ -154,10 +179,10 @@ def build_report(feature_tags, feature_dagfile, tenant_open_flags,
 
             rows.append({
                 "tenant_id": tenant,
-                "feature_name": feature,
+                "dag_id": dag_id,
                 "dependency_type": dep_type,
-                "dag_file": feature_dagfile.get(feature, ""),
-                "tags": "; ".join(tags),
+                "tables": ", ".join(dag_tables.get(dag_id, [])),
+                "feature_flags": "; ".join(tags),
                 "currently_scheduled": "Yes" if currently_scheduled else "No",
                 "required_by_flags": status,
                 "matched_open_flag": matched,
@@ -173,20 +198,20 @@ def slice_report(full: pd.DataFrame):
     to_remove = full[full["action"] == "REVIEW - remove from schedule"].drop(columns=["reason"]).reset_index(drop=True)
     unmapped = (
         full[full["required_by_flags"] == "UNMAPPED"]
-        [["tenant_id", "feature_name", "dependency_type", "dag_file", "tags", "currently_scheduled", "reason"]]
-        .drop_duplicates(subset=["feature_name", "reason"])
+        [["tenant_id", "dag_id", "dependency_type", "tables", "feature_flags", "currently_scheduled", "reason"]]
+        .drop_duplicates(subset=["dag_id", "reason"])
         .reset_index(drop=True)
     )
 
     summary = pd.DataFrame([
         ["Total tenants analyzed", full["tenant_id"].nunique()],
-        ["Total features analyzed", full["feature_name"].nunique()],
-        ["Total (tenant, feature) combinations", len(full)],
+        ["Total pipelines/dags analyzed", full["dag_id"].nunique()],
+        ["Total (tenant, dag) combinations", len(full)],
         ["Missing schedules (need to add)", len(missing)],
         ["  - Always-on (no flag needed)", (missing["dependency_type"] == "Always-on (no flag)").sum()],
         ["  - Flag-gated (open flag exists)", (missing["dependency_type"] == "Flag-gated").sum()],
         ["Extra schedules to review (flag closed)", len(to_remove)],
-        ["Unmapped feature rows (no tag / unknown tag)", (full["required_by_flags"] == "UNMAPPED").sum()],
+        ["Unmapped dag rows (no flag / unknown flag)", (full["required_by_flags"] == "UNMAPPED").sum()],
         ["Already correctly scheduled", (full["action"] == "OK - already scheduled").sum()],
         ["Already correctly NOT scheduled", (full["action"] == "OK - correctly not scheduled").sum()],
     ], columns=["Metric", "Value"])
@@ -242,12 +267,11 @@ def write_excel(output_path, summary, missing, to_remove, unmapped, full):
 # ---------------------------------------------------------------------------
 
 def main():
-    feature_tags, feature_dagfile = load_feature_tags(FEATURE_DAG_TAGS_PATH)
+    dag_tags, dag_tables, tenant_scheduled, all_tenants = load_pipelines_json(PIPELINES_JSON_PATH)
     tenant_open_flags, all_known_flags = load_tenant_flags(FEATURES_FLAGS_PATH)
-    tenant_scheduled = load_tenant_scheduled(TENANT_FEATURE_PATH)
 
-    full = build_report(feature_tags, feature_dagfile, tenant_open_flags,
-                         all_known_flags, tenant_scheduled)
+    full = build_report(dag_tags, dag_tables, tenant_open_flags,
+                         all_known_flags, tenant_scheduled, all_tenants)
     missing, to_remove, unmapped, summary = slice_report(full)
 
     write_excel(OUTPUT_PATH, summary, missing, to_remove, unmapped, full)
