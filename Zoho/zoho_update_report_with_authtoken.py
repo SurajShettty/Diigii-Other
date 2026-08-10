@@ -4,7 +4,7 @@ import json
 
 # Read instance info + report details from Excel
 # Excel must contain columns: module, reportId, reportName, active, url, auth_token
-instances = pd.read_excel(r"C:\Users\suraj\OneDrive\Desktop\Book2.xlsx")
+instances = pd.read_excel(r"C:\Users\suraj\Downloads\Templates for scripts and APIs (Excel & csv)\update_zoho_reports.xlsx")
 
 # API endpoint
 report_api_path = "/api/analytics/report/tenant"
