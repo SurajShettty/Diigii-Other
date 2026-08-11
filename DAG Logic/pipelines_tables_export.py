@@ -21,7 +21,7 @@ from openpyxl.utils import get_column_letter
 # CONFIG - edit these paths before running
 # ---------------------------------------------------------------------------
 
-INPUT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\pipelines.json"
+INPUT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\new 6.json"
 OUTPUT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\pipelines_tables.xlsx"
 
 

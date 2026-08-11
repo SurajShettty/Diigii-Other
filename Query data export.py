@@ -4,10 +4,10 @@ from datetime import datetime
 import time
 
 db_config = {
-    "host": "collpolldb10-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+    "host": "collpolldb19-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
     "user": "suraj_shetty",
-    "password": "SEaucTgQZg",
-    "database": "collpoll_gdgu"
+    "password": "LW3J0MU3mZ",
+    "database": "collpoll_subms"
 }
 
 conn = mysql.connector.connect(**db_config)
