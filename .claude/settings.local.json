@@ -10,7 +10,11 @@
       "Bash(pip show *)",
       "Bash(findstr /C:\"Name\" /C:\"Version\")",
       "Bash(python -c \"import requests, openpyxl; print\\('deps ok'\\)\")",
-      "Bash(dir /s /b *.xlsx *.csv)"
+      "Bash(dir /s /b *.xlsx *.csv)",
+      "Bash(powershell -Command \"Get-Content '/c/Users/suraj/OneDrive/Desktop/ISBHYD chc reportt.csv' -TotalCount 1\")",
+      "Bash(powershell -Command \"Get-Content '/c/Users/suraj/OneDrive/Desktop/ISBHYD elemenst.csv' -TotalCount 3\")",
+      "Bash(awk -F',' 'NR>1{print $5}' \"/c/Users/suraj/OneDrive/Desktop/ISBHYD chc reportt.csv\")",
+      "Bash(python \"DAG Logic/chc_sla_compliance_check.py\")"
     ]
   }
 }
