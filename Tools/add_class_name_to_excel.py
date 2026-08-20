@@ -19,6 +19,7 @@ from pathlib import Path
 import pandas as pd
 import pymysql
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db_env import get_db_config, list_schemas
 
 DB_QUERY = "SELECT id, batch FROM class"

@@ -30,6 +30,7 @@ except ImportError as exc:  # pragma: no cover
 else:
     _mysql_import_error = None
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db_env import get_db_config, list_schemas
 
 DEFAULT_FORMAT = "Excel (.xlsx)"

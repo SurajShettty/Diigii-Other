@@ -17,6 +17,7 @@ Run:
 from __future__ import annotations
 
 import os
+import sys
 import threading
 import tkinter as tk
 from datetime import datetime
@@ -26,6 +27,8 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 import pandas as pd
 
 import dashboard_flag_core as core
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db_env import list_schemas
 
 DEFAULT_FORMAT = "Excel (.xlsx)"

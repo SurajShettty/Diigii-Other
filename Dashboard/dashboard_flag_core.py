@@ -39,6 +39,9 @@ except ImportError as exc:  # pragma: no cover
 else:
     _mysql_import_error = None
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db_env import get_db_config, list_schemas  # noqa: F401  (list_schemas re-exported for UI)
 
 REPO_ROOT = Path(__file__).resolve().parent

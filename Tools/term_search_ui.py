@@ -10,9 +10,13 @@ Run:
 Then open http://127.0.0.1:5000 in a browser.
 """
 
+import sys
+from pathlib import Path
+
 import mysql.connector
 from flask import Flask, jsonify, render_template_string, request
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db_env import get_db_config, list_schemas
 
 app = Flask(__name__)
