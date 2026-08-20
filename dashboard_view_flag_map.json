@@ -1,0 +1,2538 @@
+{
+  "392249000004030742": {
+    "392249000018944343": {
+      "dashboard_name": "Access Management",
+      "source_tables": [
+        "access_management_movement_report",
+        "access_student_level_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "access_management_movement_report",
+        "access_student_level_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACCESS_MANAGEMENT",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015646386": {
+      "dashboard_name": "Active Backlog",
+      "source_tables": [
+        "active_backlog_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "active_backlog_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000014731949": {
+      "dashboard_name": "Admin Privilege",
+      "source_tables": [
+        "admin_privileges_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "admin_privileges_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000017502983": {
+      "dashboard_name": "Admission Intelligence Hub",
+      "source_tables": [
+        "admission_legacy_field_value_report",
+        "admission_student_status_report",
+        "seat_allocation_report",
+        "smart_form_field_value_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "admission_legacy_field_value_report",
+        "admission_student_status_report",
+        "seat_allocation_report",
+        "smart_form_field_value_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000020279894": {
+      "dashboard_name": "NAAC Criteria 8",
+      "source_tables": [
+        "admission_student_status_report",
+        "organisation_level_placement_report",
+        "tenant_master"
+      ],
+      "source_dags": [
+        "admission_student_status_report",
+        "organisation_level_placement_report",
+        "tenant_master_sync_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PLACEMENTS"
+      ]
+    },
+    "392249000020036908": {
+      "dashboard_name": "Mentor Mentee Interaction Tracker",
+      "source_tables": [
+        "meeting_management_action_items_report",
+        "meeting_management_agenda_report",
+        "meeting_management_consolidated_report",
+        "meeting_management_mom_report",
+        "mentee_meeting_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "meeting_management_consolidated_report",
+        "meeting_management_reports",
+        "mentee_meeting_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "COMMITTEE_AND_MEETING_MANAGEMENT",
+        "MENTOR_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000011293085": {
+      "dashboard_name": "Mentorship Distribution View",
+      "source_tables": [
+        "meeting_management_action_items_report",
+        "meeting_management_agenda_report",
+        "meeting_management_consolidated_report",
+        "meeting_management_mom_report",
+        "mentee_meeting_report",
+        "mentor_mentee_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "meeting_management_consolidated_report",
+        "meeting_management_reports",
+        "mentee_meeting_report",
+        "mentor_mentee_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "COMMITTEE_AND_MEETING_MANAGEMENT",
+        "MENTOR_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004157020": {
+      "dashboard_name": "Attendance Dashboard Overall",
+      "source_tables": [
+        "attendance_base_summary",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015078801": {
+      "dashboard_name": "Attendance Dashboard HKBK",
+      "source_tables": [
+        "attendance_base_summary",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015945413": {
+      "dashboard_name": "Attendance Dashboard-Copy",
+      "source_tables": [
+        "attendance_base_summary",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000005519376": {
+      "dashboard_name": "Attendance Dashboard",
+      "source_tables": [
+        "attendance_base_summary",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000018668622": {
+      "dashboard_name": "Attendance Overview",
+      "source_tables": [
+        "attendance_base_summary",
+        "student_overall_attendance_report",
+        "time_table",
+        "user_details_report",
+        "wellness_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "student_overall_attendance_report",
+        "time_table_report",
+        "user_details_report",
+        "wellness_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CAMPUS_HELP_CENTRE",
+        "FEED",
+        "FEED_V2",
+        "GATE_PASS_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "PLACEMENTS",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000014678364": {
+      "dashboard_name": "Attendance - hkbk test-Copy",
+      "source_tables": [
+        "attendance_base_summary",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000017330039": {
+      "dashboard_name": "Attendance Q2",
+      "source_tables": [
+        "attendance_base_summary",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_base_summary_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000023807698": {
+      "dashboard_name": "Attendance Exception",
+      "source_tables": [
+        "attendance_base_summary",
+        "attendance_exception_lesson_level_report",
+        "attendance_exception_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "attendance_exception_lesson_level_report",
+        "attendance_exception_report",
+        "student_attendance_base_summary_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "ATTENDANCE_EXCEPTION",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000024898404": {
+      "dashboard_name": "Export Reports",
+      "source_tables": [
+        "attendance_base_summary",
+        "class_group_summary_report",
+        "multi_hierarchy_institute_entity_report",
+        "student_overall_attendance_report",
+        "time_table",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "class_group_summary_report",
+        "multi_hierarchy_institute_entity_report",
+        "student_attendance_base_summary_report",
+        "student_overall_attendance_report",
+        "time_table_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000020190721": {
+      "dashboard_name": "NAAC Criteria 6",
+      "source_tables": [
+        "ccs_category_report",
+        "ccs_roles_and_rules_report",
+        "event_details_report",
+        "mentor_mentee_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "clubs_and_chapters_reports",
+        "event_details_report",
+        "mentor_mentee_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLUBS_AND_CHAPTERS",
+        "EVENTS",
+        "MENTOR_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000012092433": {
+      "dashboard_name": "Request Analytics",
+      "source_tables": [
+        "chc_request_report"
+      ],
+      "source_dags": [
+        "chc_request_report"
+      ],
+      "feature_flags": [
+        "CAMPUS_HELP_CENTRE"
+      ]
+    },
+    "392249000014048512": {
+      "dashboard_name": "CHC Dashboard",
+      "source_tables": [
+        "chc_request_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "chc_request_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CAMPUS_HELP_CENTRE",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000027155727": {
+      "dashboard_name": "Campus Facilities Overview",
+      "source_tables": [
+        "chc_request_report",
+        "fixed_asset_report",
+        "infrastructure_booking_report",
+        "infrastructure_report",
+        "infrastructure_utilisation_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "chc_request_report",
+        "fixed_asset_report",
+        "infrastructure_booking_report",
+        "infrastructure_report",
+        "infrastructure_utilisation_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "ASSET_MANAGEMENT",
+        "CAMPUS_HELP_CENTRE",
+        "INFRASTRUCTURE_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015267209": {
+      "dashboard_name": "Class Group Summary",
+      "source_tables": [
+        "class_group_summary_report"
+      ],
+      "source_dags": [
+        "class_group_summary_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000019786409": {
+      "dashboard_name": "deleted",
+      "source_tables": [
+        "class_group_summary_report",
+        "course_catalogue_report",
+        "course_registration_report",
+        "curriculum_course_cohort_report",
+        "lms_resources_report",
+        "student_course_registration",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "class_group_summary_report",
+        "course_catalogue_report",
+        "course_registration_report",
+        "curriculum_course_cohort_report",
+        "lms_resources_report",
+        "student_course_registration_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "COURSE_REGISTRATION",
+        "CREATE_CLASS",
+        "CREATE_CLASSGROUP",
+        "CURRICULUM_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000006898811": {
+      "dashboard_name": "Finance Overview 1.5",
+      "source_tables": [
+        "consolidated_fee_report",
+        "excess_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_fee_report",
+        "excess_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ACADEMIC_FEE_V2_INSTALMENTS",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000008405234": {
+      "dashboard_name": "Finance Overview-Copy ZOHO",
+      "source_tables": [
+        "consolidated_fee_report",
+        "excess_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_fee_report",
+        "excess_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ACADEMIC_FEE_V2_INSTALMENTS",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000008608935": {
+      "dashboard_name": "Finance Overview 2.0",
+      "source_tables": [
+        "consolidated_fee_report",
+        "excess_v2_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_fee_report",
+        "excess_v2_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ACADEMIC_FEE_V2_INSTALMENTS",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004359527": {
+      "dashboard_name": "Finance Overview",
+      "source_tables": [
+        "consolidated_fee_report",
+        "excess_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_fee_report",
+        "excess_report",
+        "fee_register_report",
+        "headwise_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ACADEMIC_FEE_V2_INSTALMENTS",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000019475388": {
+      "dashboard_name": "Dues & Recovery",
+      "source_tables": [
+        "consolidated_fee_report",
+        "headwise_v2_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report",
+        "waiver_report"
+      ],
+      "source_dags": [
+        "consolidated_fee_report",
+        "headwise_v2_report",
+        "installment_report",
+        "multi_hierarchy_institute_entity_report",
+        "scholarship_report",
+        "user_details_report",
+        "waiver_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ACADEMIC_FEE_V2_INSTALMENTS",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015688175": {
+      "dashboard_name": "Consolidated Term Level",
+      "source_tables": [
+        "consolidated_term_level_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_term_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004540897": {
+      "dashboard_name": "Result Analysis",
+      "source_tables": [
+        "consolidated_term_level_report",
+        "student_course_assessment_marks_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_term_report",
+        "student_course_assessment_marks_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000013226237": {
+      "dashboard_name": "NAAC Criteria 1",
+      "source_tables": [
+        "consolidated_term_level_report",
+        "course_attainment_report",
+        "lms_course_planner_report",
+        "naac_co_po_matrix_report",
+        "naac_course_outcome_report",
+        "naac_curriculum_report",
+        "naac_programme_outcome_report",
+        "naac_skill_courses_report",
+        "programme_attainment_report",
+        "student_course_registration",
+        "student_e_portfolio_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "consolidated_term_report",
+        "course_attainment_report",
+        "lms_course_planner_report",
+        "naac_co_po_matrix_report",
+        "naac_course_outcome_report",
+        "naac_curriculum_report",
+        "naac_programme_outcome_report",
+        "naac_skill_courses_report",
+        "programme_attainment_report",
+        "student_course_registration_report",
+        "student_e_portfolio_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "COURSE_PLANNER",
+        "COURSE_REGISTRATION",
+        "CURRICULUM_V2",
+        "EXAMINATION_MANAGEMENT",
+        "NAAC",
+        "OBE",
+        "OBE_DASHBOARD",
+        "OBE_PROGRAMME_BATCH_LEVEL_ATTAINMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000024899217": {
+      "dashboard_name": "Result Analysis Dashboard - Copy",
+      "source_tables": [
+        "consolidated_term_level_report",
+        "student_course_assessment_marks_report"
+      ],
+      "source_dags": [
+        "consolidated_term_report",
+        "student_course_assessment_marks_report"
+      ],
+      "feature_flags": [
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000005567790": {
+      "dashboard_name": "Consumable Asset Dashboard",
+      "source_tables": [
+        "consumable_asset_allotment_report",
+        "consumable_asset_report"
+      ],
+      "source_dags": [
+        "consumable_asset_allotment_report",
+        "consumable_asset_report"
+      ],
+      "feature_flags": [
+        "ASSET_MANAGEMENT"
+      ]
+    },
+    "392249000015273046": {
+      "dashboard_name": "Course Catalogue",
+      "source_tables": [
+        "course_catalogue_report"
+      ],
+      "source_dags": [
+        "course_catalogue_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000004778614": {
+      "dashboard_name": "Course Registration Dashboard- New",
+      "source_tables": [
+        "course_registration_configuration_status",
+        "student_course_registration",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "course_registration_configuration_status_report",
+        "student_course_registration_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "COURSE_REGISTRATION",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004124932": {
+      "dashboard_name": "Course Registration Dashboard",
+      "source_tables": [
+        "course_registration_configuration_status",
+        "student_course_registration",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "course_registration_configuration_status_report",
+        "student_course_registration_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "COURSE_REGISTRATION",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000023924347": {
+      "dashboard_name": "Course Registration Revemp",
+      "source_tables": [
+        "course_registration_report",
+        "student_course_registration",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "course_registration_report",
+        "student_course_registration_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "COURSE_REGISTRATION",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000019504443": {
+      "dashboard_name": "Term Go Live",
+      "source_tables": [
+        "curriculum_course_cohort_report"
+      ],
+      "source_dags": [
+        "curriculum_course_cohort_report"
+      ],
+      "feature_flags": [
+        "COURSE_REGISTRATION",
+        "CREATE_CLASS",
+        "CREATE_CLASSGROUP",
+        "CURRICULUM_V2"
+      ]
+    },
+    "392249000025263123": {
+      "dashboard_name": "Term Go Live-Copy",
+      "source_tables": [
+        "curriculum_course_cohort_report"
+      ],
+      "source_dags": [
+        "curriculum_course_cohort_report"
+      ],
+      "feature_flags": [
+        "COURSE_REGISTRATION",
+        "CREATE_CLASS",
+        "CREATE_CLASSGROUP",
+        "CURRICULUM_V2"
+      ]
+    },
+    "392249000020565864": {
+      "dashboard_name": "Curriculum",
+      "source_tables": [
+        "curriculum_course_cohort_report"
+      ],
+      "source_dags": [
+        "curriculum_course_cohort_report"
+      ],
+      "feature_flags": [
+        "COURSE_REGISTRATION",
+        "CREATE_CLASS",
+        "CREATE_CLASSGROUP",
+        "CURRICULUM_V2"
+      ]
+    },
+    "392249000026260050": {
+      "dashboard_name": "Leadership Dashboard for Academics",
+      "source_tables": [
+        "curriculum_course_cohort_report",
+        "faculty_engagement",
+        "lms_resources_report",
+        "student_gradebook_report",
+        "student_overall_attendance_report",
+        "time_table",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "curriculum_course_cohort_report",
+        "faculty_engagement_report",
+        "lms_resources_report",
+        "student_gradebook_report",
+        "student_overall_attendance_report",
+        "time_table_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "COURSE_REGISTRATION",
+        "CREATE_CLASS",
+        "CREATE_CLASSGROUP",
+        "CURRICULUM_V2",
+        "GRADEBOOK",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015646778": {
+      "dashboard_name": "Exam Enrollment",
+      "source_tables": [
+        "exam_enrollment_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "exam_enrollment_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAM_ENROLLMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015728036": {
+      "dashboard_name": "Exam Schedule Datesheet",
+      "source_tables": [
+        "exam_schedule_overall_date_sheet_report"
+      ],
+      "source_dags": [
+        "exam_schedule_overall_date_sheet_report"
+      ],
+      "feature_flags": [
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000016582147": {
+      "dashboard_name": "Examination Schema Mapping-Copy",
+      "source_tables": [
+        "exam_schema_mapping_report"
+      ],
+      "source_dags": [
+        "exam_schema_mapping_report"
+      ],
+      "feature_flags": [
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000015728555": {
+      "dashboard_name": "Examination Schema Mapping",
+      "source_tables": [
+        "exam_schema_mapping_report"
+      ],
+      "source_dags": [
+        "exam_schema_mapping_report"
+      ],
+      "feature_flags": [
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000021163627": {
+      "dashboard_name": "Collection Performance",
+      "source_tables": [
+        "excess_v2_report",
+        "fee_register_report",
+        "multi_hierarchy_institute_entity_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "excess_v2_report",
+        "fee_register_report",
+        "multi_hierarchy_institute_entity_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000020508656": {
+      "dashboard_name": "Faculty Defaulter's List",
+      "source_tables": [
+        "faculty_defaulters_list_report"
+      ],
+      "source_dags": [
+        "faculty_defaulters_list_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000004992103": {
+      "dashboard_name": "Faculty Engagement Dashboard-Copy",
+      "source_tables": [
+        "faculty_engagement",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "faculty_engagement_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004078530": {
+      "dashboard_name": "Faculty Engagement Dashboard",
+      "source_tables": [
+        "faculty_engagement",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "faculty_engagement_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004109168": {
+      "dashboard_name": "Student Classroom Engagement",
+      "source_tables": [
+        "faculty_engagement",
+        "lms_student_load_analytics_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "faculty_engagement_report",
+        "lms_student_load_analytics_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000021879883": {
+      "dashboard_name": "Faculty Engagement revamp",
+      "source_tables": [
+        "faculty_engagement",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "faculty_engagement_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000011218028": {
+      "dashboard_name": "ISBHYD - Faculty Housing Report",
+      "source_tables": [
+        "faculty_housing_report"
+      ],
+      "source_dags": [
+        "faculty_housing_report"
+      ],
+      "feature_flags": [
+        "HOSTEL_MANAGEMENT"
+      ]
+    },
+    "392249000011231890": {
+      "dashboard_name": "ISBMOH- Faculty Housing Report",
+      "source_tables": [
+        "faculty_housing_report"
+      ],
+      "source_dags": [
+        "faculty_housing_report"
+      ],
+      "feature_flags": [
+        "HOSTEL_MANAGEMENT"
+      ]
+    },
+    "392249000011458649": {
+      "dashboard_name": "ISBMOH - Available Faculty Housing",
+      "source_tables": [
+        "faculty_housing_report"
+      ],
+      "source_dags": [
+        "faculty_housing_report"
+      ],
+      "feature_flags": [
+        "HOSTEL_MANAGEMENT"
+      ]
+    },
+    "392249000011491259": {
+      "dashboard_name": "ISBHYD - Available Faculty Housing",
+      "source_tables": [
+        "faculty_housing_report"
+      ],
+      "source_dags": [
+        "faculty_housing_report"
+      ],
+      "feature_flags": [
+        "HOSTEL_MANAGEMENT"
+      ]
+    },
+    "392249000011370138": {
+      "dashboard_name": "Feedback Test",
+      "source_tables": [
+        "feedback_consolidated_report"
+      ],
+      "source_dags": [
+        "feedback_summary_reports"
+      ],
+      "feature_flags": [
+        "FEEDBACK"
+      ]
+    },
+    "392249000015347651": {
+      "dashboard_name": "Feedback - Dashboard-Copy",
+      "source_tables": [
+        "feedback_consolidated_report",
+        "feedback_student_question_response_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "feedback_summary_reports",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "FEEDBACK",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000011583696": {
+      "dashboard_name": "Feedback - Dashboard",
+      "source_tables": [
+        "feedback_consolidated_report",
+        "feedback_student_question_response_report",
+        "survey_student_question_answer_report"
+      ],
+      "source_dags": [
+        "feedback_summary_reports",
+        "survey_student_question_answer_report"
+      ],
+      "feature_flags": [
+        "FEEDBACK",
+        "SURVEY_MANAGEMENT"
+      ]
+    },
+    "392249000012343031": {
+      "dashboard_name": "ZA_support",
+      "source_tables": [
+        "feedback_consolidated_report"
+      ],
+      "source_dags": [
+        "feedback_summary_reports"
+      ],
+      "feature_flags": [
+        "FEEDBACK"
+      ]
+    },
+    "392249000012658020": {
+      "dashboard_name": "Test",
+      "source_tables": [
+        "feedback_student_question_response_report"
+      ],
+      "source_dags": [
+        "feedback_summary_reports"
+      ],
+      "feature_flags": [
+        "FEEDBACK"
+      ]
+    },
+    "392249000004520103": {
+      "dashboard_name": "Finance Master & Projection Reports",
+      "source_tables": [
+        "fee_plan_master_report",
+        "projection_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "fee_plan_master_report",
+        "projection_report_etl_dag",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000006278807": {
+      "dashboard_name": "Projection & Demand Monitoring Dashboard",
+      "source_tables": [
+        "fee_plan_master_report",
+        "multi_hierarchy_institute_entity_report",
+        "projection_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "fee_plan_master_report",
+        "multi_hierarchy_institute_entity_report",
+        "projection_report_etl_dag",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000022162677": {
+      "dashboard_name": "Academic Fee : Forecasting & Planning",
+      "source_tables": [
+        "fee_plan_master_report",
+        "multi_hierarchy_institute_entity_report",
+        "projection_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "fee_plan_master_report",
+        "multi_hierarchy_institute_entity_report",
+        "projection_report_etl_dag",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015220770": {
+      "dashboard_name": "Fee Register Unpivoted Dashboard",
+      "source_tables": [
+        "fee_register_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "fee_register_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000005211557": {
+      "dashboard_name": "Asset Management Dashboard",
+      "source_tables": [
+        "fixed_asset_allotment_report",
+        "fixed_asset_product_report",
+        "fixed_asset_report"
+      ],
+      "source_dags": [
+        "fixed_asset_allotment_report",
+        "fixed_asset_product_report",
+        "fixed_asset_report"
+      ],
+      "feature_flags": [
+        "ASSET_MANAGEMENT"
+      ]
+    },
+    "392249000019728364": {
+      "dashboard_name": "NAAC Criteria 3",
+      "source_tables": [
+        "fixed_asset_allotment_report",
+        "fixed_asset_report",
+        "infrastructure_report"
+      ],
+      "source_dags": [
+        "fixed_asset_allotment_report",
+        "fixed_asset_report",
+        "infrastructure_report"
+      ],
+      "feature_flags": [
+        "ASSET_MANAGEMENT",
+        "INFRASTRUCTURE_MANAGEMENT"
+      ]
+    },
+    "392249000010146320": {
+      "dashboard_name": "Found Items Repository - ISBHYD",
+      "source_tables": [
+        "found_items_report"
+      ],
+      "source_dags": [
+        "found_items_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000010146533": {
+      "dashboard_name": "Found Items Repository - ISBMOH",
+      "source_tables": [
+        "found_items_report"
+      ],
+      "source_dags": [
+        "found_items_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000006733317": {
+      "dashboard_name": "Gate Pass Reports",
+      "source_tables": [
+        "gate_pass_movement_report",
+        "gatepass_disciplinary_action_report",
+        "gatepass_student_level_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "gate_pass_disciplinary_action_report",
+        "gate_pass_movement_report",
+        "gatepass_student_level_report_etl_dag",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "GATE_PASS_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000016470046": {
+      "dashboard_name": "Infrastructure Utilization Dashboard-Copy",
+      "source_tables": [
+        "hostel_allotment_report",
+        "infrastructure_booking_hour_segments_report",
+        "infrastructure_booking_report",
+        "infrastructure_report",
+        "infrastructure_utilisation_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "hostel_allotment_report",
+        "infrastructure_booking_report",
+        "infrastructure_report",
+        "infrastructure_utilisation_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "HOSTEL_MANAGEMENT",
+        "INFRASTRUCTURE_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000007603104": {
+      "dashboard_name": "Infrastructure Utilization Dashboard",
+      "source_tables": [
+        "hostel_allotment_report",
+        "infrastructure_booking_hour_segments_report",
+        "infrastructure_booking_report",
+        "infrastructure_report",
+        "infrastructure_utilisation_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "hostel_allotment_report",
+        "infrastructure_booking_report",
+        "infrastructure_report",
+        "infrastructure_utilisation_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "HOSTEL_MANAGEMENT",
+        "INFRASTRUCTURE_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000009157352": {
+      "dashboard_name": "Hostel Management Dashboard",
+      "source_tables": [
+        "hostel_attendance_datewise_report",
+        "hostel_consolidated_attendance_report",
+        "hostel_fee_policy_summary_report",
+        "mess_student_daily_report",
+        "student_hostel_fee_policy_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "hostel_attendance_datewise_report",
+        "hostel_consolidated_attendance_report",
+        "hostel_fee_policy_summary_report",
+        "mess_student_daily_report",
+        "student_hostel_fee_policy_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "HOSTEL_ATTENDANCE",
+        "HOSTEL_MANAGEMENT",
+        "MESS_CODE",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000023932628": {
+      "dashboard_name": "Hostel Management Dashboard-Copy",
+      "source_tables": [
+        "hostel_attendance_datewise_report",
+        "hostel_consolidated_attendance_report",
+        "hostel_fee_policy_summary_report",
+        "mess_student_daily_report",
+        "student_hostel_fee_policy_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "hostel_attendance_datewise_report",
+        "hostel_consolidated_attendance_report",
+        "hostel_fee_policy_summary_report",
+        "mess_student_daily_report",
+        "student_hostel_fee_policy_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "HOSTEL_ATTENDANCE",
+        "HOSTEL_MANAGEMENT",
+        "MESS_CODE",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000027289596": {
+      "dashboard_name": "Campus Operations Overview",
+      "source_tables": [
+        "hostel_attendance_datewise_report",
+        "mess_student_daily_report",
+        "student_hostel_fee_policy_report",
+        "transport_management_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "hostel_attendance_datewise_report",
+        "mess_student_daily_report",
+        "student_hostel_fee_policy_report",
+        "transport_management_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "HOSTEL_ATTENDANCE",
+        "HOSTEL_MANAGEMENT",
+        "MESS_CODE",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSPORT_MANAGEMENT"
+      ]
+    },
+    "392249000014237494": {
+      "dashboard_name": "NAAC Criteria 2",
+      "source_tables": [
+        "hr_post_tag_report",
+        "staff_designations_report",
+        "staff_e_portfolio_report",
+        "student_e_portfolio_report",
+        "time_table",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "hr_post_tag_report",
+        "staff_designations_report",
+        "staff_e_portfolio_report",
+        "student_e_portfolio_report",
+        "time_table_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004211326": {
+      "dashboard_name": "Login Report Dashboard",
+      "source_tables": [
+        "inactive_user_report",
+        "login_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "inactive_user_report",
+        "login_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000010807869": {
+      "dashboard_name": "Invoice Module Dashbaord",
+      "source_tables": [
+        "invoice_v2_report"
+      ],
+      "source_dags": [
+        "invoice_v2_report"
+      ],
+      "feature_flags": [
+        "FINANCE_TAX_INVOICE"
+      ]
+    },
+    "392249000012990828": {
+      "dashboard_name": "All Client License Details",
+      "source_tables": [
+        "license_report"
+      ],
+      "source_dags": [
+        "license_report"
+      ],
+      "feature_flags": [
+        "LICENSE_DASHBOARD"
+      ]
+    },
+    "392249000009846250": {
+      "dashboard_name": "License Report Dashboard",
+      "source_tables": [
+        "license_report",
+        "license_user_ukids_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "license_report",
+        "license_user_ukids_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "LICENSE_DASHBOARD",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000014597725": {
+      "dashboard_name": "Course Planner",
+      "source_tables": [
+        "lms_course_planner_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "lms_course_planner_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "COURSE_PLANNER",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000019760868": {
+      "dashboard_name": "NAAC Criteria 5",
+      "source_tables": [
+        "lms_course_planner_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "lms_course_planner_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "COURSE_PLANNER",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000008037249": {
+      "dashboard_name": "LMS Resource Report",
+      "source_tables": [
+        "lms_resources_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "lms_resources_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004991918": {
+      "dashboard_name": "Student - Load Dashboard",
+      "source_tables": [
+        "lms_student_load_analytics_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "lms_student_load_analytics_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000022680653": {
+      "dashboard_name": "Mess Dashboard",
+      "source_tables": [
+        "mess_student_daily_report",
+        "tenant_master"
+      ],
+      "source_dags": [
+        "mess_student_daily_report",
+        "tenant_master_sync_report"
+      ],
+      "feature_flags": [
+        "MESS_CODE",
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000016509335": {
+      "dashboard_name": "Venue Booking",
+      "source_tables": [
+        "multi_venue_booking_report"
+      ],
+      "source_dags": [
+        "multi_venue_booking_report"
+      ],
+      "feature_flags": [
+        "VENUE_BOOKING"
+      ]
+    },
+    "392249000022505861": {
+      "dashboard_name": "NIRF",
+      "source_tables": [
+        "nirf_exam_metrics_report",
+        "nirf_funding_metrics_report",
+        "nirf_infra_metrics_report",
+        "nirf_placement_metrics_report",
+        "nirf_user_metrics_report",
+        "staff_e_portfolio_report"
+      ],
+      "source_dags": [
+        "nirf_exam_metrics_report",
+        "nirf_funding_metrics_report",
+        "nirf_infra_metrics_report",
+        "nirf_placement_metrics_report",
+        "nirf_user_metrics_report",
+        "staff_e_portfolio_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "E_PORTFOLIO",
+        "INFRASTRUCTURE_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "PLACEMENTS",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000009104937": {
+      "dashboard_name": "CRM Admission Report",
+      "source_tables": [
+        "old_form_field_report",
+        "old_form_list_report",
+        "smart_form_field_report",
+        "smart_form_list_report"
+      ],
+      "source_dags": [
+        "old_form_reports",
+        "smart_form_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ADMISSION_MANAGEMENT_V2"
+      ]
+    },
+    "392249000004337535": {
+      "dashboard_name": "Placement Dashboard",
+      "source_tables": [
+        "organisation_level_placement_report",
+        "placement_student_level_report",
+        "student_level_placement_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "organisation_level_placement_report",
+        "placement_student_level_report",
+        "student_level_placement_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "PLACEMENTS",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000027269848": {
+      "dashboard_name": "Placements Overview",
+      "source_tables": [
+        "organisation_level_placement_report",
+        "student_level_placement_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "organisation_level_placement_report",
+        "student_level_placement_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "PLACEMENTS",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000025082518": {
+      "dashboard_name": "PhD Dashboard",
+      "source_tables": [
+        "phd_guide_co_guide_report",
+        "phd_student_framework_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "phd_guide_co_guide_report",
+        "phd_student_framework_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "PHD_MANAGEMENT_V2",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015728195": {
+      "dashboard_name": "Question Paper Configuration Status",
+      "source_tables": [
+        "question_paper_config_status_report"
+      ],
+      "source_dags": [
+        "question_paper_config_status_report"
+      ],
+      "feature_flags": [
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000014612420": {
+      "dashboard_name": "Slot Management Dashboard",
+      "source_tables": [
+        "slot_management"
+      ],
+      "source_dags": [
+        "slot_management_report"
+      ],
+      "feature_flags": [
+        "SLOT_MANAGEMENT"
+      ]
+    },
+    "392249000004590261": {
+      "dashboard_name": "HR Dashboard",
+      "source_tables": [
+        "staff_attendance_day_wise_report",
+        "staff_attendance_leave_summary_report",
+        "staff_leave_requests_report",
+        "staff_leave_summary_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "staff_attendance_day_wise_report",
+        "staff_attendance_leave_summary_report",
+        "staff_leave_requests_report",
+        "staff_leave_summary_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "LEAVE_MANAGEMENT",
+        "LEAVE_MANAGEMENT_V2",
+        "PARENT_MANAGEMENT",
+        "STAFF_ATTENDANCE",
+        "STAFF_ATTENDANCE_V2",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000013689803": {
+      "dashboard_name": "Staff E Portfolio Dashbaord",
+      "source_tables": [
+        "staff_e_portfolio_field_value_report",
+        "staff_e_portfolio_report",
+        "student_e_portfolio_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "staff_e_portfolio_report",
+        "student_e_portfolio_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000022886979": {
+      "dashboard_name": "Academic Progress Report",
+      "source_tables": [
+        "student_ams_lms_ems_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_ams_lms_ems_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM_V2",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000025586522": {
+      "dashboard_name": "Hkbk-Copy",
+      "source_tables": [
+        "student_ams_lms_ems_report"
+      ],
+      "source_dags": [
+        "student_ams_lms_ems_report"
+      ],
+      "feature_flags": [
+        "CLASSROOM_V2",
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000015745883": {
+      "dashboard_name": "Student Exam Result Analysis",
+      "source_tables": [
+        "student_assessment_level_result_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_assessment_level_result_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000018035672": {
+      "dashboard_name": "Result Analysis - Last Phase",
+      "source_tables": [
+        "student_assessment_level_result_report",
+        "student_examination_transcript_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_assessment_level_result_report",
+        "student_examination_transcript_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSCRIPT_MANAGEMENT"
+      ]
+    },
+    "392249000025919736": {
+      "dashboard_name": "Result Analysis Dashboard Demo",
+      "source_tables": [
+        "student_assessment_level_result_report",
+        "student_course_assessment_marks_report",
+        "student_examination_transcript_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_assessment_level_result_report",
+        "student_course_assessment_marks_report",
+        "student_examination_transcript_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSCRIPT_MANAGEMENT"
+      ]
+    },
+    "392249000026327688": {
+      "dashboard_name": "Result Analysis Dashboard Demo-Copy",
+      "source_tables": [
+        "student_assessment_level_result_report",
+        "student_course_assessment_marks_report",
+        "student_examination_transcript_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_assessment_level_result_report",
+        "student_course_assessment_marks_report",
+        "student_examination_transcript_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSCRIPT_MANAGEMENT"
+      ]
+    },
+    "392249000018162756": {
+      "dashboard_name": "Sample Dashboard for Marks Readiness",
+      "source_tables": [
+        "student_assessment_level_result_report"
+      ],
+      "source_dags": [
+        "student_assessment_level_result_report"
+      ],
+      "feature_flags": [
+        "EXAMINATION_MANAGEMENT"
+      ]
+    },
+    "392249000017876713": {
+      "dashboard_name": "Old Dashboard",
+      "source_tables": [
+        "student_attendance_exception_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_exception_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "ATTENDANCE_EXCEPTION",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000006153602": {
+      "dashboard_name": "Attendance Exception Dashboard",
+      "source_tables": [
+        "student_attendance_exception_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_attendance_exception_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "ATTENDANCE_EXCEPTION",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015745676": {
+      "dashboard_name": "Student Course Assessment Marks",
+      "source_tables": [
+        "student_course_assessment_marks_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_course_assessment_marks_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000007290849": {
+      "dashboard_name": "REC : Student Component-Wise & Assessment Marks",
+      "source_tables": [
+        "student_course_assessment_marks_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_course_assessment_marks_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000020466835": {
+      "dashboard_name": "Marks Entry Dashboard",
+      "source_tables": [
+        "student_course_assessment_marks_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_course_assessment_marks_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000025760579": {
+      "dashboard_name": "Result Analysis Dashboard - Sample",
+      "source_tables": [
+        "student_course_assessment_marks_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_course_assessment_marks_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000019111255": {
+      "dashboard_name": "Student Management Dashboard",
+      "source_tables": [
+        "student_distribution_summary_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_distribution_summary_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000015745129": {
+      "dashboard_name": "Student Transcript",
+      "source_tables": [
+        "student_examination_transcript_report",
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_examination_transcript_report",
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSCRIPT_MANAGEMENT"
+      ]
+    },
+    "392249000020478942": {
+      "dashboard_name": "Student Gallery Report [REC]",
+      "source_tables": [
+        "student_examination_transcript_report",
+        "student_gallery_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_examination_transcript_report",
+        "student_gallery_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSCRIPT_MANAGEMENT"
+      ]
+    },
+    "392249000015693038": {
+      "dashboard_name": "Student Course-Wise Exam Schedule",
+      "source_tables": [
+        "student_exam_schedule_plan_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_exam_schedule_plan_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "EXAMINATION_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000014612955": {
+      "dashboard_name": "Student Gradebook",
+      "source_tables": [
+        "student_gradebook_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_gradebook_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "GRADEBOOK",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000025406666": {
+      "dashboard_name": "Hkbk",
+      "source_tables": [
+        "student_gradebook_report",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_gradebook_report",
+        "student_overall_attendance_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CLASSROOM",
+        "GRADEBOOK",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000005627068": {
+      "dashboard_name": "Student Ledger Dashboard",
+      "source_tables": [
+        "student_ledger_report",
+        "summarized_ledger_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "student_ledger_report",
+        "summarized_ledger_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ACADEMIC_FEE_V2",
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "DUES_MANAGEMENT_V2",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000009337604": {
+      "dashboard_name": "Placement Eligibility and Applied Report",
+      "source_tables": [
+        "student_placement_eligibility_report"
+      ],
+      "source_dags": [
+        "student_placement_eligibility_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000011244342": {
+      "dashboard_name": "Survey Reports",
+      "source_tables": [
+        "survey_event_audience_count_report",
+        "survey_event_report",
+        "survey_question_analysis_report",
+        "survey_student_question_answer_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "survey_event_audience_count_report",
+        "survey_event_report",
+        "survey_question_analysis_report",
+        "survey_student_question_answer_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "SURVEY_MANAGEMENT"
+      ]
+    },
+    "392249000016575445": {
+      "dashboard_name": "Survey New",
+      "source_tables": [
+        "survey_event_audience_count_report",
+        "survey_event_report",
+        "survey_question_analysis_report",
+        "survey_student_question_answer_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "survey_event_audience_count_report",
+        "survey_event_report",
+        "survey_question_analysis_report",
+        "survey_student_question_answer_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "SURVEY_MANAGEMENT"
+      ]
+    },
+    "392249000004137547": {
+      "dashboard_name": "Faculty Attendance Marking Insights",
+      "source_tables": [
+        "tenant_master",
+        "time_table"
+      ],
+      "source_dags": [
+        "tenant_master_sync_report",
+        "time_table_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000020495591": {
+      "dashboard_name": "Test Multiple Institutions Access",
+      "source_tables": [
+        "tenant_master",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "tenant_master_sync_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004130591": {
+      "dashboard_name": "Faculty Attendance Marking Dashboard",
+      "source_tables": [
+        "time_table"
+      ],
+      "source_dags": [
+        "time_table_report"
+      ],
+      "feature_flags": [
+        "MODULE_AGNOSTIC"
+      ]
+    },
+    "392249000004387208": {
+      "dashboard_name": "Classroom Utilization Dashboard",
+      "source_tables": [
+        "time_table",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "time_table_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "MODULE_AGNOSTIC",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000004150456": {
+      "dashboard_name": "Transport Management Dashboard",
+      "source_tables": [
+        "transport_management_report",
+        "transport_pickup_route_report",
+        "user_details_report"
+      ],
+      "source_dags": [
+        "transport_management_report",
+        "transport_pickup_route_report",
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT",
+        "TRANSPORT_MANAGEMENT"
+      ]
+    },
+    "392249000010930869": {
+      "dashboard_name": "Student Wellness Dashboard",
+      "source_tables": [
+        "user_details_report",
+        "wellness_report"
+      ],
+      "source_dags": [
+        "user_details_report",
+        "wellness_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "CAMPUS_HELP_CENTRE",
+        "FEED",
+        "FEED_V2",
+        "GATE_PASS_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "PLACEMENTS",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000013673780": {
+      "dashboard_name": "User Management Dashbaord",
+      "source_tables": [
+        "user_details_report"
+      ],
+      "source_dags": [
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    },
+    "392249000020455589": {
+      "dashboard_name": "Student Level Normalization & Moderation Status",
+      "source_tables": [
+        "user_details_report"
+      ],
+      "source_dags": [
+        "user_details_report"
+      ],
+      "feature_flags": [
+        "ADMISSION_MANAGEMENT",
+        "ALUMNI_MANAGEMENT",
+        "PARENT_MANAGEMENT",
+        "STAFF_MANAGEMENT",
+        "STUDENT_MANAGEMENT"
+      ]
+    }
+  }
+}
