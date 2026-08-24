@@ -1070,15 +1070,23 @@ def _actual_max_subjects(df):
 
 
 def load_template_columns(template_path):
-    """Read the header row of the uploaded template file and return its columns in order."""
+    """Read the header row (plus the first data row, if any) of the uploaded template file.
+
+    Returns (columns, first_row): columns is the header in order; first_row is a dict
+    of the first data row's values (empty dict if the template has no data rows). This
+    lets institution-constant fields already filled in by the template (e.g. ORG_CODE)
+    be reused for every student instead of being left blank.
+    """
     p = Path(template_path)
     if not p.exists():
         raise FileNotFoundError(f"Template file not found: {template_path}")
     if p.suffix.lower() in ('.xlsx', '.xls'):
-        tdf = pd.read_excel(p, nrows=0)
+        tdf = pd.read_excel(p, nrows=1)
     else:
-        tdf = pd.read_csv(p, nrows=0)
-    return list(tdf.columns)
+        tdf = pd.read_csv(p, nrows=1)
+    columns = list(tdf.columns)
+    first_row = tdf.iloc[0].to_dict() if len(tdf) else {}
+    return columns, first_row
 
 
 def apply_template_columns(df, template_cols):
@@ -1200,11 +1208,19 @@ def main():
         print("Error: Template file path cannot be empty!")
         return
     try:
-        template_cols = load_template_columns(template_path)
+        template_cols, template_row = load_template_columns(template_path)
     except Exception as e:
         print(f"Error: Could not read template file - {e}")
         return
     print(f"Loaded {len(template_cols)} columns from template")
+
+    # ORG_CODE is institution-constant, not per-student — reuse the value already
+    # filled in on the template's first data row, if any; otherwise leave it null.
+    org_code_value = template_row.get('ORG_CODE')
+    if org_code_value is None or pd.isna(org_code_value) or str(org_code_value).strip() == '':
+        org_code_value = None
+    else:
+        org_code_value = str(org_code_value).strip()
 
     # Gradesheet date fields — only prompt for the ones present in the template; each
     # entered value is hardcoded for every student in this run.
@@ -1268,6 +1284,9 @@ def main():
         df_merged['DOI'] = doi_input
         df_merged['MONTH'] = month_input
         df_merged['YEAR'] = year_input
+
+        # ORG_CODE — picked from the template's own data row for every student; null if not given
+        df_merged['ORG_CODE'] = org_code_value
 
         # Format final report
         df_final = format_final_report(df_merged)
