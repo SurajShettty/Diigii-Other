@@ -11,9 +11,9 @@ Output columns:
 """
 import pandas as pd
 
-LOGIN_REPORT_PATH = "C:\\Users\\suraj\\Downloads\\login_report (1).xlsx"
-INACTIVE_REPORT_PATH = "C:\\Users\\suraj\\Downloads\\inactive_user_report.xlsx"
-UKID_SNAPSHOT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\licence_users_ukid_report.csv"
+LOGIN_REPORT_PATH = "C:\\Users\\suraj\\Downloads\\login_report (1).xlsx" -- login report
+INACTIVE_REPORT_PATH = "C:\\Users\\suraj\\Downloads\\inactive_user_report.xlsx" -- inactive_user_report
+UKID_SNAPSHOT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\licence_users_ukid_report.csv"  --licence_users_ukid_report
 OUTPUT_PATH = "C:\\Users\\suraj\\OneDrive\\Desktop\\final dataset report.csv"
 
 REF_DATE = pd.Timestamp.today().normalize()  # run date; swap for a fixed date if backfilling
