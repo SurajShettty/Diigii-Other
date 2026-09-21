@@ -62,13 +62,13 @@ def safe_convert(input_path, output_path):
         except Exception as e2:
             print("Both conversions failed:", e2)
 
-DB_NAME = "collpoll_micms"
+DB_NAME = "collpoll_jiet"
 # output folder for this run: "<schema suffix>_<session id>" (set in __main__)
 RUN_FOLDER = None
 
 
 def run_root():
-    """Base output folder for this run, e.g. ~/Downloads/micms_51."""
+    """Base output folder for this run, e.g. ~/Downloads/jiet_51."""
     return Path.home() / "Downloads" / RUN_FOLDER
 
 
@@ -410,7 +410,8 @@ def build_objective_document(tstruct, data, template_name, logo_path, save_loc):
         p = doc.paragraphs[0] if doc.paragraphs else doc.add_paragraph()
         p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
         p.paragraph_format.space_before = Pt(0)
-        p.add_run().add_picture(logo_path)
+        p.add_run().add_picture(logo_path, width=Inches(1.5))
+        
 
     # ---- header info block: two balanced columns, bold labels, no borders ----
     def field(cell, label, value):
