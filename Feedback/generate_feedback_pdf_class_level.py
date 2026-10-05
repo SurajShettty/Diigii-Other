@@ -62,7 +62,7 @@ def safe_convert(input_path, output_path):
         except Exception as e2:
             print("Both conversions failed:", e2)
 
-DB_NAME = "collpoll_jiet"
+DB_NAME = "collpoll_micms"
 # output folder for this run: "<schema suffix>_<session id>" (set in __main__)
 RUN_FOLDER = None
 
@@ -95,7 +95,10 @@ def fetch_data(query):
     mycursor = mydb.cursor(dictionary=True)
     mycursor.execute(query)
     raw_data = mycursor.fetchall()
-    return pd.DataFrame(raw_data)
+    # keep column names even when the query returns no rows, so downstream
+    # column access (e.g. df['faculty_name']) doesn't raise KeyError
+    columns = [c[0] for c in mycursor.description] if mycursor.description else None
+    return pd.DataFrame(raw_data, columns=columns)
 
 from docx.shared import Inches
 from docx.oxml import OxmlElement
@@ -537,7 +540,7 @@ if __name__ == "__main__":
     from (
         Select 
         fs.session_name, cl.id class_id, cl.batch as class_name, concat(ua.f_name, ' ', ua.l_name) faculty_name, fp.ukid faculty_ukid, 
-        pr.programme_name, c.course_id, c.course_code, c.course_name, cl.type as course_type, term.name as term, term.id term_id,
+        pr.programme_name, c.course_id, c.course_code, coalesce(cv.course_name,c.course_name) as course_name, cl.type as course_type, term.name as term, term.id term_id,
         ft.template_name, fsr.question_id, fts.section_name, ftsq.question_text, fss.student_ukid, ftqo.option_text, ftqo.option_score,
         fcft.session_id, fcft.template_id
         from feedback_student_response fsr
@@ -549,6 +552,8 @@ if __name__ == "__main__":
         left join feedback_session fs on fs.id = fss.session_id
         left join feedback_course_faculty_template fcft on fcft.id = fsts.feedback_course_faculty_template_id
         left join class cl on cl.id = fcft.class_id
+        left join term_course tc on tc.term_id = cl.term_id and tc.course_id = cl.course_id
+        left join course_version cv on cv.id = tc.course_version_id
         left join faculty_profile fp on fp.ukid = fcft.faculty_ukid
         left join user_attributes ua on fp.ukid = ua.ukid
         left join feedback_template ft on ft.id = fcft.template_id
@@ -586,7 +591,7 @@ if __name__ == "__main__":
 
     response_subjective = fetch_data('''
     Select fs.session_name, cl.id class_id, cl.batch as class_name, concat(ua.f_name, ' ', ua.l_name) faculty_name, fp.ukid faculty_ukid, 
-    pr.programme_name, c.course_code, c.course_name, cl.type as course_type, term.id term_id, term.name as term, fsr.response_text,
+    pr.programme_name, c.course_code, coalesce(cv.course_name,c.course_name) as course_name, cl.type as course_type, term.id term_id, term.name as term, fsr.response_text,
     ft.template_name, fsr.question_id, fts.section_name, ftsq.question_text, fss.student_ukid, ftqo.option_text, ftqo.option_score
     from feedback_student_response fsr
     left join feedback_student_template_status fsts on fsts.id = fsr.session_student_template_status_id
@@ -599,6 +604,8 @@ if __name__ == "__main__":
     left join class cl on cl.id = fcft.class_id
     left join faculty_profile fp on fp.ukid = fcft.faculty_ukid
     left join feedback_template ft on ft.id = fcft.template_id
+    left join term_course tc on tc.term_id = cl.term_id and tc.course_id = cl.course_id
+    left join course_version cv on cv.id = tc.course_version_id
     left join course c on c.course_id = cl.course_id
     left join programme pr on pr.programme_id = cl.programme_id
     left join term on term.id = cl.term_id
@@ -633,6 +640,10 @@ if __name__ == "__main__":
         left join class_student t4 on t1.class_id = t4.class_id
         group by t1.faculty_id, t2.course_id, t2.term_id,t2.id,t2.batch
     ''')
+
+    if response.empty:
+        print(f"No submitted objective responses found for session {x} in {DB_NAME}. Nothing to generate.")
+        raise SystemExit(0)
 
     # 🧹 Clean up strings to prevent mismatched joins
     for col in ['faculty_name', 'course_code', 'course_name', 'template_name', 'term','class_id','class_name']:
