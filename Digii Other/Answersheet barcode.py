@@ -15,9 +15,9 @@ from io import BytesIO
 # =========================================================
 # INPUT / OUTPUT FOLDERS
 # =========================================================
-INPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\FOE II year Even Semester (25-26)"
+INPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\KAHE Answer Sheets"
 
-OUTPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\FOE II year Even Semester (25-26)_OUTPUT_PDFS"
+OUTPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\FASCM 2023 ODD 7 SEM (IV UG) 2026-27_OUTPUT_PDFS"
 
 # Create output folder if not exists
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
