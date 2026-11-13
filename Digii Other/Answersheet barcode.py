@@ -17,7 +17,7 @@ from io import BytesIO
 # =========================================================
 INPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\KAHE Answer Sheets"
 
-OUTPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\FASCM 2023 ODD 7 SEM (IV UG) 2026-27_OUTPUT_PDFS"
+OUTPUT_FOLDER = r"C:\Users\suraj\OneDrive\Desktop\KCE_2025 MCA S3_OUTPUT_PDFS"
 
 # Create output folder if not exists
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
@@ -133,7 +133,15 @@ for excel_file in excel_files:
     # -----------------------------------------------------
     # LOAD EXCEL
     # -----------------------------------------------------
-    df = pd.read_excel(excel_file)
+    # Read Answer Sheet Number as text so leading zeros (e.g. 000123) are kept
+    df = pd.read_excel(
+        excel_file,
+        dtype={"Answer Sheet Number": str}
+    )
+
+    df["Answer Sheet Number"] = (
+        df["Answer Sheet Number"].fillna("").str.strip()
+    )
 
     # -----------------------------------------------------
     # SORT BY REGISTRATION ID
