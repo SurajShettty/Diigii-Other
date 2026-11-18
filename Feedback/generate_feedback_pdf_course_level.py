@@ -70,10 +70,10 @@ def folder_check(folder_name):
 
 def fetch_data(query):
     mydb = mysql.connector.connect(
-        host="collpolldb9-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
+        host="collpolldb18-read.c5sc77nejhmr.ap-south-1.rds.amazonaws.com",
         user="suraj_shetty",
-        passwd="3qIGaWCdlh",
-        database="collpoll_micms"
+        passwd="tttUVwa1nM",
+        database="collpoll_rec"
     )
 
     mycursor = mydb.cursor(dictionary=True)
